@@ -79,14 +79,14 @@ assign(ObservedInfo.prototype,{
 		return max + 1;
 	},
 	addEdge: function(objEv){
-		objEv.obj.bind(objEv.event, this.onDependencyChange);
+		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
 		if(objEv.obj.observedInfo) {
 			this.childDepths[objEv.obj._cid] = objEv.obj.observedInfo.getDepth();
 			this.depth = null;
 		}
 	},
 	removeEdge: function(objEv){
-		objEv.obj.unbind(objEv.event, this.onDependencyChange);
+		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
 		if(objEv.obj.observedInfo) {
 			delete this.childDepths[objEv.obj._cid];
 			this.depth = null;
