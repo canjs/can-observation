@@ -55,7 +55,7 @@
     "npmAlgorithm": "flat"
   },
   "dependencies": {
-    "can-util": "^3.0.0-pre.1",
+    "can-util": "^3.0.0-pre.5",
     "can-event": "^3.0.0-pre.1"
   },
   "devDependencies": {
