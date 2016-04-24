@@ -11,7 +11,8 @@
 //
 // - can.__observe - All other observes call this method to be visible to computed functions.
 // - can.__notObserve - Returns a function that can not be observed.
-var canEvent = require('can-event');
+require('can-event');
+
 var canBatch = require('can-event/batch/');
 var assign = require('can-util/js/assign/');
 

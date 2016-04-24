@@ -1,6 +1,6 @@
 {
   "name": "can-observe-info",
-  "version": "0.0.0",
+  "version": "3.0.0-pre.1",
   "description": "Core observable indicators",
   "homepage": "http://canjs.com",
   "author": {
@@ -13,8 +13,9 @@
     "version": "git commit -am \"Update dist for release\" && git checkout -b release && git add -f dist/",
     "postversion": "git push --tags && git checkout master && git branch -D release && git push",
     "testee": "testee test.html --browsers firefox",
-    "test": "npm run testee",
-    "jshint": "jshint src/. --config",
+    "test": "npm run jshint && npm run testee",
+    "jshint": "jshint *.js --config",
+    "release:prerelease": "npm version prerelease && npm publish",
     "release:patch": "npm version patch && npm publish",
     "release:minor": "npm version minor && npm publish",
     "release:major": "npm version major && npm publish",
@@ -54,8 +55,8 @@
     "npmAlgorithm": "flat"
   },
   "dependencies": {
-    "can-util": "^0.0.0",
-    "can-event": "^0.0.0"
+    "can-util": "^3.0.0-pre.1",
+    "can-event": "^3.0.0-pre.1"
   },
   "devDependencies": {
     "documentjs": "^0.4.2",
