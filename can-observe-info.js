@@ -56,7 +56,7 @@ var observedInfoStack = [];
 
 assign(ObservedInfo.prototype,{
 	getPrimaryDepth: function() {
-		return this.compute._primaryDepth;
+		return this.compute._primaryDepth || 0;
 	},
 	_setReady: function(){
 		this.ready = true;
