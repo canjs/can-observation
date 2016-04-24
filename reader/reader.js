@@ -111,7 +111,7 @@ observeReader = {
 			name: "function",
 			// if this is a function before the last read and its not a constructor function
 			test: function(value, i, reads, options){
-				return types.isCallableForValue(value);
+				return types.isCallableForValue(value) && !types.isCompute(value);
 			},
 			read: function(value, i, reads, options, state, prev){
 				if( isAt(i, reads) ) {
@@ -130,8 +130,7 @@ observeReader = {
 			name: "compute",
 			// compute value reader
 			test: function(value, i, reads, options){
-
-				return value && value.isComputed && !isAt(i, reads);
+				return types.isCompute(value) && !isAt(i, reads);
 			},
 			read: function(value, i, reads, options, state){
 				if(options.readCompute === false && i === reads.length ) {
