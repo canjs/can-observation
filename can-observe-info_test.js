@@ -1,3 +1,5 @@
+require("./reader/reader_test");
+
 var ObserveInfo = require('can-observe-info');
 var QUnit = require('steal-qunit');
 

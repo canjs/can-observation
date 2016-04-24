@@ -3,6 +3,7 @@ var assign = require('can-util/js/assign/assign');
 var CID = require('can-util/js/cid/cid');
 var types = require('can-util/js/types/types');
 var dev = require('can-util/js/dev/dev');
+var canEvent = require('can-event');
 // there are things that you need to evaluate when you get them back as a property read
 // for example a compute or a function you might need to call to get the next value to
 // actually check
@@ -18,7 +19,7 @@ var dev = require('can-util/js/dev/dev');
 // Callbacks
 // - earlyExit - called if a value could not be found
 // - foundObservable - called when an observable value is found
-
+var observeReader;
 var isAt = function(index, reads) {
 	var prevRead = reads[index-1];
 	return prevRead && prevRead.at;
@@ -30,9 +31,9 @@ var readValue = function(value, index, reads, options, state, prev){
 	do {
 
 		usedValueReader = false;
-		for(var i =0, len = read.valueReaders.length; i < len; i++){
-			if( read.valueReaders[i].test(value, index, reads, options) ) {
-				value = read.valueReaders[i].read(value, index, reads, options, state, prev);
+		for(var i =0, len = observeReader.valueReaders.length; i < len; i++){
+			if( observeReader.valueReaders[i].test(value, index, reads, options) ) {
+				value = observeReader.valueReaders[i].read(value, index, reads, options, state, prev);
 				//usedValueReader = true;
 			}
 		}
@@ -44,7 +45,7 @@ var readValue = function(value, index, reads, options, state, prev){
 var specialRead = {index: true, key: true, event: true, element: true, viewModel: true};
 
 
-module.exports = {
+observeReader = {
 	read: function (parent, reads, options) {
 
 		options = options || {};
@@ -65,8 +66,8 @@ module.exports = {
 		while( i < readLength ) {
 			prev = cur;
 			// try to read the property
-			for(var r=0, readersLength = read.propertyReaders.length; r < readersLength; r++) {
-				var reader = read.propertyReaders[r];
+			for(var r=0, readersLength = observeReader.propertyReaders.length; r < readersLength; r++) {
+				var reader = observeReader.propertyReaders[r];
 				if(reader.test(cur)) {
 					cur = reader.read(cur, reads[i], i, options, state);
 					break; // there can be only one reading of a property
@@ -141,7 +142,7 @@ module.exports = {
 					options.foundObservable(value, i);
 					state.foundObservable = true;
 				}
-				return value instanceof can.Compute ? value.get() : value();
+				return value.get ? value.get() : value();
 			}
 		}],
 	// an array of things that might have a property
@@ -163,7 +164,7 @@ module.exports = {
 					return value[prop.key];
 				}
 			}
-		}
+		},
 		// read a promise
 		// it would be good to remove this ... then
 		//
@@ -290,3 +291,5 @@ module.exports = {
 		}
 	}
 };
+
+module.exports = observeReader;
