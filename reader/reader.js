@@ -115,7 +115,7 @@ observeReader = {
 			},
 			read: function(value, i, reads, options, state, prev){
 				if( isAt(i, reads) ) {
-					return i === reads.length ? can.proxy(value, prev) : value;
+					return i === reads.length ? value.bind(prev) : value;
 				}
 				else if(options.callMethodsOnObservables && types.isMapLike(prev)) {
 					return value.apply(prev, options.args || []);
