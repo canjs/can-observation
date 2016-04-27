@@ -4,21 +4,7 @@ var CID = require('can-util/js/cid/cid');
 var types = require('can-util/js/types/types');
 var dev = require('can-util/js/dev/dev');
 var canEvent = require('can-event');
-// there are things that you need to evaluate when you get them back as a property read
-// for example a compute or a function you might need to call to get the next value to
-// actually check
-// - isArgument - should be renamed to something like "onLastPropertyReadReturnFunctionInsteadOfCallingIt".
-//   This is used to make a compute out of that function if necessary.
-// - readCompute - can be set to `false` to prevent reading an ending compute.  This is used by component to get a
-//   compute as a delegate.  In 3.0, this should be removed and force people to write "{@prop} change"
-// - callMethodsOnObservables - this is an overwrite ... so normal methods won't be called, but observable ones will.
-// - executeAnonymousFunctions - call a function if it's found, defaults to true
-// - proxyMethods - if the last read is a method, return a function so `this` will be correct.
-// - args - arguments to call functions with.
-//
-// Callbacks
-// - earlyExit - called if a value could not be found
-// - foundObservable - called when an observable value is found
+
 var observeReader;
 var isAt = function(index, reads) {
 	var prevRead = reads[index-1];
@@ -44,14 +30,42 @@ var readValue = function(value, index, reads, options, state, prev){
 
 var specialRead = {index: true, key: true, event: true, element: true, viewModel: true};
 
+var checkForObservableAndNotify = function(options, state, getObserves, value, index){
+	if(options.foundObservable && !state.foundObservable) {
+		if( ObserveInfo.trapsCount() ) {
+			ObserveInfo.observes( getObserves() );
+			options.foundObservable(value, index);
+			state.foundObservable = true;
+		}
+	}
+};
 
 observeReader = {
+	// there are things that you need to evaluate when you get them back as a property read
+	// for example a compute or a function you might need to call to get the next value to
+	// actually check
+	// - isArgument - should be renamed to something like "onLastPropertyReadReturnFunctionInsteadOfCallingIt".
+	//   This is used to make a compute out of that function if necessary.
+	// - readCompute - can be set to `false` to prevent reading an ending compute.  This is used by component to get a
+	//   compute as a delegate.  In 3.0, this should be removed and force people to write "{@prop} change"
+	// - callMethodsOnObservables - this is an overwrite ... so normal methods won't be called, but observable ones will.
+	// - executeAnonymousFunctions - call a function if it's found, defaults to true
+	// - proxyMethods - if the last read is a method, return a function so `this` will be correct.
+	// - args - arguments to call functions with.
+	//
+	// Callbacks
+	// - earlyExit - called if a value could not be found
+	// - foundObservable - called when an observable value is found
 	read: function (parent, reads, options) {
 
 		options = options || {};
 		var state = {
 			foundObservable: false
 		};
+		var getObserves;
+		if(options.foundObservable) {
+			getObserves = ObserveInfo.trap();
+		}
 
 		// `cur` is the current value.
 		var cur = readValue(parent, 0, reads, options, state),
@@ -60,8 +74,10 @@ observeReader = {
 			prev,
 			// `foundObs` did we find an observable.
 			readLength = reads.length,
-			i = 0;
+			i = 0,
+			last;
 
+		checkForObservableAndNotify(options, state, getObserves, parent, 0);
 
 		while( i < readLength ) {
 			prev = cur;
@@ -73,9 +89,16 @@ observeReader = {
 					break; // there can be only one reading of a property
 				}
 			}
+			checkForObservableAndNotify(options, state, getObserves, prev, i);
+			last = cur;
 			i = i+1;
 			// read the value if it is a compute or function
 			cur = readValue(cur, i, reads, options, state, prev);
+
+			checkForObservableAndNotify(options, state, getObserves, last, i);
+
+
+
 			type = typeof cur;
 			// early exit if need be
 			if (i < reads.length && (cur === null || type !== 'function' && type !== 'object')) {
@@ -136,11 +159,6 @@ observeReader = {
 				if(options.readCompute === false && i === reads.length ) {
 					return value;
 				}
-
-				if (!state.foundObservable && options.foundObservable) {
-					options.foundObservable(value, i);
-					state.foundObservable = true;
-				}
 				return value.get ? value.get() : value();
 			}
 		}],
@@ -152,10 +170,6 @@ observeReader = {
 				return types.isMapLike.apply(this, arguments);
 			},
 			read: function(value, prop, index, options, state){
-				if (!state.foundObservable && options.foundObservable) {
-					options.foundObservable(value, index);
-					state.foundObservable = true;
-				}
 				var res = value.attr(prop.key);
 				if(res !== undefined) {
 					return res;
@@ -173,10 +187,6 @@ observeReader = {
 				return types.isPromise(value);
 			},
 			read: function(value, prop, index, options, state){
-				if (!state.foundObservable && options.foundObservable) {
-					options.foundObservable(value, index);
-					state.foundObservable = true;
-				}
 				var observeData = value.__observeData;
 				if(!value.__observeData) {
 					observeData = value.__observeData = {

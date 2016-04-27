@@ -1,6 +1,9 @@
 var observeReader = require("./reader");
 var QUnit = require('steal-qunit');
 var ObserveInfo = require('can-observe-info');
+var canEvent = require('can-event');
+
+var assign = require("can-util/js/assign/assign");
 
 QUnit.module('can-observe-info/reader');
 
@@ -44,5 +47,41 @@ test('can.compute.reads', function(){
 
 	deepEqual( observeReader.reads("foo.bar@zed"),
 		[{key: "foo", at: false},{key: "bar", at: false},{key: "zed", at: true}]);
+
+});
+
+test('able to read things like can-define', 3, function(){
+	var obj = assign({}, canEvent);
+	var prop = "PROP";
+	Object.defineProperty(obj, "prop",{
+		get: function(){
+			ObserveInfo.observe(obj,"prop")
+			return prop;
+		},
+		set: function(val){
+			var old = prop;
+			prop = val;
+			this.dispatch("prop", prop, old);
+		}
+	});
+	var data = {
+		obj: obj
+	};
+
+	var c = new ObserveInfo(function(){
+		var value = observeReader.read(data,observeReader.reads("obj.prop"),{
+			foundObservable: function(obs, index){
+				equal(obs, obj, "got an observable");
+				equal(index,1, "got the right index");
+			}
+		}).value;
+		equal(value, "PROP");
+	}, null, {
+		updater: function(newVal, oldVal){
+
+		}
+	});
+	c.getValueAndBind();
+
 
 });

@@ -21,7 +21,7 @@ function ObservedInfo(func, context, compute){
 	this.oldObserved = null;
 	this.func = func;
 	this.context = context;
-	this.compute = compute;
+	this.compute = compute.updater ? compute : {updater: compute};
 	this.onDependencyChange = this.onDependencyChange.bind(this);
 	this.depth = null;
 	this.childDepths = {};
@@ -255,27 +255,43 @@ ObservedInfo.observe = function (obj, event) {
 ObservedInfo.trap = function(){
 	if (observedInfoStack.length) {
 		var top = observedInfoStack[observedInfoStack.length-1];
+		var oldTraps = top.traps;
 		var traps = top.traps = [];
 		return function(){
-			top.traps = null;
+			top.traps = oldTraps;
 			return traps;
 		};
 	} else {
 		return function(){return [];};
 	}
 };
+ObservedInfo.trapsCount = function(){
+	if (observedInfoStack.length) {
+		var top = observedInfoStack[observedInfoStack.length-1];
+		return top.traps.length;
+	} else {
+		return 0;
+	}
+}
+// sets an array of observable notifications on the current top of the observe stack.
+
 ObservedInfo.observes = function(observes){
 	// a bit more optimized so we don't have to repeat everything in can.__observe
 	var top = observedInfoStack[observedInfoStack.length-1];
 	if (top) {
-		for(var i =0, len = observes.length; i < len; i++) {
-			var trap = observes[i],
-				name = trap.name;
+		if(top.traps) {
+			top.traps.push.apply(top.traps, observes);
+		} else {
+			for(var i =0, len = observes.length; i < len; i++) {
+				var trap = observes[i],
+					name = trap.name;
 
-			if(!top.newObserved[name]) {
-				top.newObserved[name] = trap;
+				if(!top.newObserved[name]) {
+					top.newObserved[name] = trap;
+				}
 			}
 		}
+
 	}
 };
 
