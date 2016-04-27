@@ -2,7 +2,7 @@ require("./reader/reader_test");
 
 var ObserveInfo = require('can-observe-info');
 var QUnit = require('steal-qunit');
-var CID = require('can-util/js/cid/cid')
+var CID = require('can-util/js/cid/cid');
 
 var assign = require("can-util/js/assign/assign");
 var canEvent = require('can-event');

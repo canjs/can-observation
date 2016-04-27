@@ -272,7 +272,7 @@ ObservedInfo.trapsCount = function(){
 	} else {
 		return 0;
 	}
-}
+};
 // sets an array of observable notifications on the current top of the observe stack.
 
 ObservedInfo.observes = function(observes){

@@ -55,7 +55,7 @@ test('able to read things like can-define', 3, function(){
 	var prop = "PROP";
 	Object.defineProperty(obj, "prop",{
 		get: function(){
-			ObserveInfo.observe(obj,"prop")
+			ObserveInfo.observe(obj,"prop");
 			return prop;
 		},
 		set: function(val){
