@@ -15,6 +15,7 @@ require('can-event');
 
 var canBatch = require('can-event/batch/');
 var assign = require('can-util/js/assign/');
+var namespace = require('can-util/namespace');
 
 function ObservedInfo(func, context, compute){
 	this.newObserved = {};
@@ -320,4 +321,4 @@ ObservedInfo.notObserve = function(fn){
 
 canBatch._onDispatchedEvents = ObservedInfo.batchEnd;
 
-module.exports = ObservedInfo;
+module.exports = namespace.ObservedInfo = ObservedInfo;
