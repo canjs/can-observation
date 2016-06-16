@@ -1,6 +1,6 @@
 {
   "name": "can-observe-info",
-  "version": "3.0.0",
+  "version": "3.0.0-pre.6",
   "description": "Core observable indicators",
   "homepage": "http://canjs.com",
   "author": {
@@ -15,6 +15,7 @@
     "testee": "testee test.html --browsers firefox",
     "test": "npm run jshint && npm run testee",
     "jshint": "jshint *.js reader/*.js --config",
+	"release:pre": "npm version prerelease && npm publish",
     "release:patch": "npm version patch && npm publish",
     "release:minor": "npm version minor && npm publish",
     "release:major": "npm version major && npm publish",
