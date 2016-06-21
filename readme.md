@@ -1,58 +1,129 @@
-# can-observe-info
+# can-observation
 
-[![Build Status](https://travis-ci.org/canjs/can-observe-info.png?branch=master)](https://travis-ci.org/canjs/can-observe-info)
+[![Build Status](https://travis-ci.org/canjs/can-observation.png?branch=master)](https://travis-ci.org/canjs/can-observation)
 
-Core observable indicators
+Core observable indicators.
 
-## Usage
+- <code>[observed Object](#observed-object)</code>
+- <code>[Observation.add(obj, event)](#observationaddobj-event)</code>
+- <code>[Observation.addAll(observes)](#observationaddallobserves)</code>
+- <code>[Observation.ignore(fn)](#observationignorefn)</code>
+- <code>[Observation.trap()](#observationtrap)</code>
+- <code>[Observation.isRecording()](#observationisrecording)</code>
 
-### ES6 use
+## API
 
-With StealJS, you can import this module directly in a template that is autorendered:
+## observed `{Object}`
+
+ 
+An object representing an observation.
 
 ```js
-import plugin from 'can-observe-info';
+{ "obj": map, "event": "prop1" }
 ```
 
-### CommonJS use
 
-Use `require` to load `can-observe-info` and everything else
-needed to create a template that uses `can-observe-info`:
+
+
+### <code>Object</code>
+
+- __obj__ <code>{Object}</code>:
+  The observable object
+- __event__ <code>{String}</code>:
+  The event, or more likely property, that is being observed.
+  
+
+## <code>Observation.add(obj, event)</code>
+
+
+Signals that an event should be observed. Adds the observable being read to
+the top of the stack.
 
 ```js
-var plugin = require("can-observe-info");
+Observation.add(obj, "prop1");
 ```
 
-## AMD use
 
-Configure the `can` and `jquery` paths and the `can-observe-info` package:
+1. __obj__ <code>{Object}</code>:
+  An observable object which is being observed.
+1. __event__ <code>{String}</code>:
+  The name of the event (or property) that is being observed.
 
-```html
-<script src="require.js"></script>
-<script>
-	require.config({
-	    paths: {
-	        "jquery": "node_modules/jquery/dist/jquery",
-	        "can": "node_modules/canjs/dist/amd/can"
-	    },
-	    packages: [{
-		    	name: 'can-observe-info',
-		    	location: 'node_modules/can-observe-info/dist/amd',
-		    	main: 'lib/can-observe-info'
-	    }]
-	});
-	require(["main-amd"], function(){});
-</script>
+## <code>Observation.addAll(observes)</code>
+
+
+The same as `Observation.add` but takes an array of [observed](#observed-object) objects.
+This will most often by used in coordination with [trap](#observationtrap):
+
+```js
+var untrap = Observation.trap();
+
+Observation.add(obj, "prop3");
+
+var traps = untrap();
+Oservation.addAll(traps);
 ```
 
-### Standalone use
 
-Load the `global` version of the plugin:
+1. __observes__ <code>{Array\<[observed](#observed-object)\>}</code>:
+  An array of [observed](#observed-object)s.
+  
 
-```html
-<script src='./node_modules/can-observe-info/dist/global/can-observe-info.js'></script>
+## <code>Observation.ignore(fn)</code>
+
+
+Creates a function that, when called, will prevent observations from
+being applied.
+
+```js
+var fn = Observation.ignore(function(){
+  // This will be ignored
+  Observation.add(obj, "prop1");
+});
+
+fn();
+Observation.trapCount(); // -> 0
 ```
 
+
+1. __fn__ <code>{function}</code>:
+  Any function that contains potential calls to 
+  [observe](#observationaddobj-event).
+  
+
+- __returns__ <code>{function}</code>:
+  A function that is free of observation side-effects.
+  
+
+## <code>Observation.trap()</code>
+
+
+Trap all observations until the `untrap` function is called. The state of 
+traps prior to `Observation.trap()` will be restored when `untrap()` is called.
+
+```js
+var untrap = Observation.trap();
+
+Observation.add(obj, "prop1");
+
+var traps = untrap();
+console.log(traps[0].obj === obj); // -> true
+```
+
+
+- __returns__ <code>{function}</code>:
+  A function to untrap the current observations.
+  
+
+## <code>Observation.isRecording()</code>
+
+
+Returns if some function is in the process of recording observes.
+
+
+- __returns__ <code>{Boolean}</code>:
+  True if a function is in the process of recording observes.
+  
 ## Contributing
 
 ### Making a Build

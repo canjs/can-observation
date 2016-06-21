@@ -1,4 +1,4 @@
-var ObserveInfo = require('can-observe-info');
+var Observation = require('can-observation');
 var assign = require('can-util/js/assign/assign');
 var CID = require('can-util/js/cid/cid');
 var types = require('can-util/js/types/types');
@@ -32,8 +32,8 @@ var specialRead = {index: true, key: true, event: true, element: true, viewModel
 
 var checkForObservableAndNotify = function(options, state, getObserves, value, index){
 	if(options.foundObservable && !state.foundObservable) {
-		if( ObserveInfo.trapsCount() ) {
-			ObserveInfo.observes( getObserves() );
+		if(Observation.trapsCount()) {
+			Observation.addAll( getObserves() );
 			options.foundObservable(value, index);
 			state.foundObservable = true;
 		}
@@ -64,7 +64,7 @@ observeReader = {
 		};
 		var getObserves;
 		if(options.foundObservable) {
-			getObserves = ObserveInfo.trap();
+			getObserves = Observation.trap();
 		}
 
 		// `cur` is the current value.
@@ -214,7 +214,7 @@ observeReader = {
 						observeData.dispatch("state",["rejected","pending"]);
 					});
 				}
-				ObserveInfo.observe(observeData,"state");
+				Observation.add(observeData,"state");
 				return prop.key in observeData ? observeData[prop.key] : value[prop.key];
 			}
 		},

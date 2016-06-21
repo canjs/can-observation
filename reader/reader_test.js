@@ -1,11 +1,11 @@
 var observeReader = require("./reader");
 var QUnit = require('steal-qunit');
-var ObserveInfo = require('can-observe-info');
+var Observation = require('can-observation');
 var canEvent = require('can-event');
 
 var assign = require("can-util/js/assign/assign");
 
-QUnit.module('can-observe-info/reader');
+QUnit.module('can-observation/reader');
 
 
 
@@ -18,7 +18,7 @@ test("can.Compute.read can read a promise (#179)", function(){
 		})
 	};
 	var calls = 0;
-	var c = new ObserveInfo(function(){
+	var c = new Observation(function(){
 		return observeReader.read(data,observeReader.reads("promise.value")).value;
 	}, null, {
 		updater: function(newVal, oldVal){
@@ -55,7 +55,7 @@ test('able to read things like can-define', 3, function(){
 	var prop = "PROP";
 	Object.defineProperty(obj, "prop",{
 		get: function(){
-			ObserveInfo.observe(obj,"prop");
+			Observation.add(obj,"prop");
 			return prop;
 		},
 		set: function(val){
@@ -68,7 +68,7 @@ test('able to read things like can-define', 3, function(){
 		obj: obj
 	};
 
-	var c = new ObserveInfo(function(){
+	var c = new Observation(function(){
 		var value = observeReader.read(data,observeReader.reads("obj.prop"),{
 			foundObservable: function(obs, index){
 				equal(obs, obj, "got an observable");

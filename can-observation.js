@@ -1,4 +1,4 @@
-// # can/compute/get_value_and_bind
+// # can-observation
 //
 // This module:
 //
@@ -17,7 +17,7 @@ var canBatch = require('can-event/batch/');
 var assign = require('can-util/js/assign/');
 var namespace = require('can-util/namespace');
 
-function ObservedInfo(func, context, compute){
+function Observation(func, context, compute){
 	this.newObserved = {};
 	this.oldObserved = null;
 	this.func = func;
@@ -33,7 +33,7 @@ function ObservedInfo(func, context, compute){
 	this.setReady = this._setReady.bind(this);
 }
 
-// ### observedInfoStack
+// ### observationStack
 //
 // This is the stack of all `observedInfo` objects that are the result of
 // recursive `getValueAndBind` calls.
@@ -54,9 +54,9 @@ function ObservedInfo(func, context, compute){
 // - `observed` is a map of `"cid|event"` to the observable and event.
 //   We use keys like `"cid|event"` to quickly identify if we have already observed this observable.
 // - `names` is all the keys so we can quickly tell if two observedInfo objects are the same.
-var observedInfoStack = [];
+var observationStack = [];
 
-assign(ObservedInfo.prototype,{
+assign(Observation.prototype,{
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
@@ -99,7 +99,7 @@ assign(ObservedInfo.prototype,{
 			if(ev.batchNum !== undefined) {
 				// Only need to register once per batchNum
 				if(ev.batchNum !== this.batchNum) {
-					ObservedInfo.registerUpdate(this);
+					Observation.registerUpdate(this);
 					this.batchNum = ev.batchNum;
 				}
 			} else {
@@ -125,7 +125,7 @@ assign(ObservedInfo.prototype,{
 	// ## getValueAndBind
 	// Calls `func` with "this" as `context` and binds to any observables that
 	// `func` reads. When any of those observables change, `onchanged` is called.
-	// `oldObservedInfo` is A map of observable / event pairs this function used to be listening to.
+	// `oldObservation` is A map of observable / event pairs this function used to be listening to.
 	// Returns the `newInfo` set of listeners and the value `func` returned.
 	getValueAndBind: function() {
 		this.bound = true;
@@ -137,9 +137,9 @@ assign(ObservedInfo.prototype,{
 		// Add this function call's observedInfo to the stack,
 		// runs the function, pops off the observedInfo, and returns it.
 
-		observedInfoStack.push(this);
+		observationStack.push(this);
 		this.value = this.func.call(this.context);
-		observedInfoStack.pop();
+		observationStack.pop();
 		this.updateBindings();
 		canBatch.afterPreviousEvents(this.setReady);
 	},
@@ -177,6 +177,20 @@ assign(ObservedInfo.prototype,{
 	}
 });
 
+/**
+ * @typedef {{}} observed observed
+ *
+ * @description
+ *
+ * An object representing an observation.
+ *
+ * ```js
+ * { "obj": map, "event": "prop1" }
+ * ```
+ *
+ * @option {Object} obj The observable object
+ * @option {String} event The event, or more likely property, that is being observed.
+ */
 
 
 var updateOrder = [],
@@ -184,7 +198,7 @@ var updateOrder = [],
 	maxPrimaryDepth = 0;
 
 // could get a registerUpdate from a 5 while a 1 is going on because the 5 listens to the 1
-ObservedInfo.registerUpdate = function(observeInfo, batchNum){
+Observation.registerUpdate = function(observeInfo, batchNum){
 	var depth = observeInfo.getDepth()-1;
 	var primaryDepth = observeInfo.getPrimaryDepth();
 
@@ -204,7 +218,8 @@ ObservedInfo.registerUpdate = function(observeInfo, batchNum){
 	primary.current = Math.min(depth, primary.current);
 	primary.max = Math.max(depth, primary.max);
 };
-ObservedInfo.batchEnd = function(batchNum){
+
+Observation.batchEnd = function(batchNum){
 	var cur;
 
 	while(true) {
@@ -230,12 +245,25 @@ ObservedInfo.batchEnd = function(batchNum){
 	}
 };
 
-
-// ## can.__observe
-// Indicates that an observable is being read.
-// Updates the top of the stack with the observable being read.
-ObservedInfo.observe = function (obj, event) {
-	var top = observedInfoStack[observedInfoStack.length-1];
+/**
+ * @function Observation.add observe
+ * @signature `Observation.add(obj, event)`
+ *
+ * Signals that an event should be observed. Adds the observable being read to
+ * the top of the stack.
+ *
+ * ```js
+ * Observation.add(obj, "prop1");
+ * ```
+ *
+ * @param {Object} obj An observable object which is being observed.
+ * @param {String} event The name of the event (or property) that is being observed.
+ * @body
+ *
+ * Signals that an object's property is being observed, so that any functions that are recording observations will see that this object is a dependency.
+ */
+Observation.add = function (obj, event) {
+	var top = observationStack[observationStack.length-1];
 	if (top && !top.ignore) {
 		var evStr = event + "",
 			name = obj._cid + '|' + evStr;
@@ -252,33 +280,28 @@ ObservedInfo.observe = function (obj, event) {
 	}
 };
 
-
-ObservedInfo.trap = function(){
-	if (observedInfoStack.length) {
-		var top = observedInfoStack[observedInfoStack.length-1];
-		var oldTraps = top.traps;
-		var traps = top.traps = [];
-		return function(){
-			top.traps = oldTraps;
-			return traps;
-		};
-	} else {
-		return function(){return [];};
-	}
-};
-ObservedInfo.trapsCount = function(){
-	if (observedInfoStack.length) {
-		var top = observedInfoStack[observedInfoStack.length-1];
-		return top.traps.length;
-	} else {
-		return 0;
-	}
-};
-// sets an array of observable notifications on the current top of the observe stack.
-
-ObservedInfo.observes = function(observes){
-	// a bit more optimized so we don't have to repeat everything in can.__observe
-	var top = observedInfoStack[observedInfoStack.length-1];
+/**
+ * @function Observation.addAll observes
+ * @signature `Observation.addAll(observes)`
+ *
+ * The same as `Observation.add` but takes an array of [observed] objects.
+ * This will most often by used in coordination with [Observation.trap]:
+ *
+ * ```js
+ * var untrap = Observation.trap();
+ *
+ * Observation.add(obj, "prop3");
+ *
+ * var traps = untrap();
+ * Oservation.addAll(traps);
+ * ```
+ *
+ * @param {Array<observed>} observes An array of [observed]s.
+ */
+Observation.addAll = function(observes){
+	// a bit more optimized so we don't have to repeat everything in
+	// Observation.add
+	var top = observationStack[observationStack.length-1];
 	if (top) {
 		if(top.traps) {
 			top.traps.push.apply(top.traps, observes);
@@ -296,19 +319,32 @@ ObservedInfo.observes = function(observes){
 	}
 };
 
-// ### can.__isRecordingObserves
-// Returns if some function is in the process of recording observes.
-ObservedInfo.isRecording = function(){
-	var len = observedInfoStack.length;
-	return len && (observedInfoStack[len-1].ignore === 0);
-};
-
-// ### can.__notObserve
-// Protects a function from being observed.
-ObservedInfo.notObserve = function(fn){
+/**
+ * @function Observation.ignore notObserve
+ * @signature `Observation.ignore(fn)`
+ *
+ * Creates a function that, when called, will prevent observations from
+ * being applied.
+ *
+ * ```js
+ * var fn = Observation.ignore(function(){
+ *   // This will be ignored
+ *   Observation.add(obj, "prop1");
+ * });
+ *
+ * fn();
+ * Observation.trapCount(); // -> 0
+ * ```
+ *
+ * @param {Function} fn Any function that contains potential calls to 
+ * [Observation.add].
+ *
+ * @return {Function} A function that is free of observation side-effects.
+ */
+Observation.ignore = function(fn){
 	return function(){
-		if (observedInfoStack.length) {
-			var top = observedInfoStack[observedInfoStack.length-1];
+		if (observationStack.length) {
+			var top = observationStack[observationStack.length-1];
 			top.ignore++;
 			var res = fn.apply(this, arguments);
 			top.ignore--;
@@ -319,6 +355,63 @@ ObservedInfo.notObserve = function(fn){
 	};
 };
 
-canBatch._onDispatchedEvents = ObservedInfo.batchEnd;
 
-module.exports = namespace.ObservedInfo = ObservedInfo;
+/**
+ * @function Observation.trap trap
+ * @signature `Observation.trap()`
+ *
+ * Trap all observations until the `untrap` function is called. The state of 
+ * traps prior to `Observation.trap()` will be restored when `untrap()` is called.
+ *
+ * ```js
+ * var untrap = Observation.trap();
+ *
+ * Observation.add(obj, "prop1");
+ *
+ * var traps = untrap();
+ * console.log(traps[0].obj === obj); // -> true
+ * ```
+ *
+ * @return {Function} A function to untrap the current observations.
+ */
+Observation.trap = function(){
+	if (observationStack.length) {
+		var top = observationStack[observationStack.length-1];
+		var oldTraps = top.traps;
+		var traps = top.traps = [];
+		return function(){
+			top.traps = oldTraps;
+			return traps;
+		};
+	} else {
+		return function(){return [];};
+	}
+};
+
+Observation.trapsCount = function(){
+	if (observationStack.length) {
+		var top = observationStack[observationStack.length-1];
+		return top.traps.length;
+	} else {
+		return 0;
+	}
+};
+// sets an array of observable notifications on the current top of the observe stack.
+
+/**
+ * @function Observation.isRecording isRecording
+ * 
+ * @signature `Observation.isRecording()`
+ *
+ * Returns if some function is in the process of recording observes.
+ *
+ * @return {Boolean} True if a function is in the process of recording observes.
+ */
+Observation.isRecording = function(){
+	var len = observationStack.length;
+	return len && (observationStack[len-1].ignore === 0);
+};
+
+canBatch._onDispatchedEvents = Observation.batchEnd;
+
+module.exports = namespace.Observation = Observation;
