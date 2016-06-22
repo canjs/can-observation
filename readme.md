@@ -4,16 +4,26 @@
 
 Core observable indicators.
 
-- <code>[observed Object](#observed-object)</code>
-- <code>[Observation.add(obj, event)](#observationaddobj-event)</code>
-- <code>[Observation.addAll(observes)](#observationaddallobserves)</code>
-- <code>[Observation.ignore(fn)](#observationignorefn)</code>
-- <code>[Observation.trap()](#observationtrap)</code>
-- <code>[Observation.isRecording()](#observationisrecording)</code>
+- <code>[__can-observation__ ](#can-observation-)</code>
+  - <code>[new Observation(func, context, compute)](#new-observationfunc-context-compute)</code>
+    - <code>[observed Object](#observed-object)</code>
+    - <code>[Observation.add(obj, event)](#observationaddobj-event)</code>
+    - <code>[Observation.addAll(observes)](#observationaddallobserves)</code>
+    - <code>[Observation.ignore(fn)](#observationignorefn)</code>
+    - <code>[Observation.trap()](#observationtrap)</code>
+    - <code>[Observation.isRecording()](#observationisrecording)</code>
 
 ## API
 
-## observed `{Object}`
+
+## <code>__can-observation__ </code>
+
+
+
+### <code>new Observation(func, context, compute)</code>
+
+
+#### observed `{Object}`
 
  
 An object representing an observation.
@@ -25,7 +35,7 @@ An object representing an observation.
 
 
 
-### <code>Object</code>
+##### <code>Object</code>
 
 - __obj__ <code>{Object}</code>:
   The observable object
@@ -33,7 +43,7 @@ An object representing an observation.
   The event, or more likely property, that is being observed.
   
 
-## <code>Observation.add(obj, event)</code>
+#### <code>Observation.add(obj, event)</code>
 
 
 Signals that an event should be observed. Adds the observable being read to
@@ -49,7 +59,7 @@ Observation.add(obj, "prop1");
 1. __event__ <code>{String}</code>:
   The name of the event (or property) that is being observed.
 
-## <code>Observation.addAll(observes)</code>
+#### <code>Observation.addAll(observes)</code>
 
 
 The same as `Observation.add` but takes an array of [observed](#observed-object) objects.
@@ -69,7 +79,7 @@ Oservation.addAll(traps);
   An array of [observed](#observed-object)s.
   
 
-## <code>Observation.ignore(fn)</code>
+#### <code>Observation.ignore(fn)</code>
 
 
 Creates a function that, when called, will prevent observations from
@@ -88,14 +98,14 @@ Observation.trapCount(); // -> 0
 
 1. __fn__ <code>{function}</code>:
   Any function that contains potential calls to 
-  [observe](#observationaddobj-event).
+  [add](#observationaddobj-event).
   
 
 - __returns__ <code>{function}</code>:
   A function that is free of observation side-effects.
   
 
-## <code>Observation.trap()</code>
+#### <code>Observation.trap()</code>
 
 
 Trap all observations until the `untrap` function is called. The state of 
@@ -115,7 +125,7 @@ console.log(traps[0].obj === obj); // -> true
   A function to untrap the current observations.
   
 
-## <code>Observation.isRecording()</code>
+#### <code>Observation.isRecording()</code>
 
 
 Returns if some function is in the process of recording observes.
@@ -123,7 +133,7 @@ Returns if some function is in the process of recording observes.
 
 - __returns__ <code>{Boolean}</code>:
   True if a function is in the process of recording observes.
-  
+    
 ## Contributing
 
 ### Making a Build
