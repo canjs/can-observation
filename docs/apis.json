@@ -1,8 +1,10 @@
 [
-	"observed",
-	"Observation.add",
-	"Observation.addAll",
-	"Observation.ignore",
-	"Observation.trap",
-	"Observation.isRecording"
+	{"can-observation": [
+		"observed",
+		"Observation.add",
+		"Observation.addAll",
+		"Observation.ignore",
+		"Observation.trap",
+		"Observation.isRecording"
+	]}
 ]
