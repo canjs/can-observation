@@ -17,6 +17,13 @@ var canBatch = require('can-event/batch/');
 var assign = require('can-util/js/assign/');
 var namespace = require('can-util/namespace');
 
+/**
+ * @module {constructor} can-observation
+ * @parent can-infrastructure
+ *
+ * @signature `new Observation(func, context, compute)`
+ */
+
 function Observation(func, context, compute){
 	this.newObserved = {};
 	this.oldObserved = null;
@@ -179,6 +186,7 @@ assign(Observation.prototype,{
 
 /**
  * @typedef {{}} observed observed
+ * @parent can-observation
  *
  * @description
  *
@@ -246,7 +254,8 @@ Observation.batchEnd = function(batchNum){
 };
 
 /**
- * @function Observation.add observe
+ * @function Observation.add add
+ * @parent can-observation
  * @signature `Observation.add(obj, event)`
  *
  * Signals that an event should be observed. Adds the observable being read to
@@ -281,7 +290,8 @@ Observation.add = function (obj, event) {
 };
 
 /**
- * @function Observation.addAll observes
+ * @function Observation.addAll addAll
+ * @parent can-observation
  * @signature `Observation.addAll(observes)`
  *
  * The same as `Observation.add` but takes an array of [observed] objects.
@@ -320,7 +330,8 @@ Observation.addAll = function(observes){
 };
 
 /**
- * @function Observation.ignore notObserve
+ * @function Observation.ignore ignore
+ * @parent can-observation
  * @signature `Observation.ignore(fn)`
  *
  * Creates a function that, when called, will prevent observations from
@@ -358,6 +369,7 @@ Observation.ignore = function(fn){
 
 /**
  * @function Observation.trap trap
+ * @parent can-observation
  * @signature `Observation.trap()`
  *
  * Trap all observations until the `untrap` function is called. The state of 
@@ -400,7 +412,7 @@ Observation.trapsCount = function(){
 
 /**
  * @function Observation.isRecording isRecording
- * 
+ * @parent can-observation
  * @signature `Observation.isRecording()`
  *
  * Returns if some function is in the process of recording observes.
