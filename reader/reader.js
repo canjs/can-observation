@@ -57,7 +57,6 @@ observeReader = {
 	// - earlyExit - called if a value could not be found
 	// - foundObservable - called when an observable value is found
 	read: function (parent, reads, options) {
-
 		options = options || {};
 		var state = {
 			foundObservable: false
@@ -95,7 +94,7 @@ observeReader = {
 			// read the value if it is a compute or function
 			cur = readValue(cur, i, reads, options, state, prev);
 
-			checkForObservableAndNotify(options, state, getObserves, last, i);
+			checkForObservableAndNotify(options, state, getObserves, prev, i-1);
 
 
 

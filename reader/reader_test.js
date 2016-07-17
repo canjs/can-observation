@@ -85,3 +85,22 @@ test('able to read things like can-define', 3, function(){
 
 
 });
+
+test("foundObservable called with observable object (#7)", function(){
+	var map = {
+		isSaving: function(){
+			Observation.add(this, "_saving");
+		},
+		addEventListener: function(){}
+	};
+	// must use an observation to make sure things are listening.
+	var c = new Observation(function(){
+		observeReader.read(map,observeReader.reads("isSaving"),{
+			foundObservable: function(obs){
+				QUnit.equal(obs, map);
+			}
+		});
+	}, null,{});
+	c.getValueAndBind();
+
+});
