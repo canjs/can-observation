@@ -236,8 +236,7 @@ observeReader = {
 						dev.warn("Use %"+prop.key+" in place of @"+prop.key+".");
 
 						//!steal-remove-end
-
-						prop.at = false;
+						
 						return value["@"+prop.key];
 					}
 
