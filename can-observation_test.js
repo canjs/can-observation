@@ -37,5 +37,5 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 
 	});
 
-	oi.getValueAndBind();
+	oi.start();
 });

@@ -20,8 +20,73 @@ var namespace = require('can-util/namespace');
 /**
  * @module {constructor} can-observation
  * @parent can-infrastructure
+ * @group can-observation.prototype prototype
+ * @group can-observation.static static
+ * @group can-observation.types types
+ *
+ * Provides a machanism to notify when an observable has been read and a
+ * way to observe those reads called within a given function.
  *
  * @signature `new Observation(func, context, compute)`
+ *
+ * Creates an observation of a given function called with `this` as
+ * a given context. Calls back `compute` when the return value of `func` changes.
+ *
+ * @param {function} func The function whose value is being observed.
+ * @param {*} context What `this` should be when `func` is called.
+ * @param {function(*,*,Number)|can-compute} updated(newValue, oldValue, batchNum) A function to call when `func`'s return value changes.
+ *
+ * @body
+ *
+ * ## Use
+ *
+ * Instances of `Observation` are rarely created directly.  Instead, use [can-compute]'s more friendly API to
+ * observe when a function's value changes. [can-compute] uses `can-observation` internally.
+ *
+ * `Observation`'s static methods like: [can-observation.add], [can-observation.ignore], and [can-observation.trap]
+ * are used more commonly to control which observable events a compute will listen to.
+ *
+ * To use `can-observation` directly, create something observable (supports `addEventListener`) and
+ * calls [can-observation.add] like:
+ *
+ * ```js
+ * var Observation = require("can-observation");
+ * var assign = require("can-util/js/assign/assign");
+ * var canEvent = require("can-event");
+ *
+ * var me = assign({}, canEvent);
+ *
+ * var name = "Justin";
+ * Object.defineProperty(me,"name",{
+ *   get: function(){
+ *     Observation.add(this,"name");
+ *     return name;
+ *   },
+ *   set: function(newVal) {
+ *     var oldVal = name;
+ *     name = newVal;
+ *     this.dispatch("name", newVal, oldVal);
+ *   }
+ * })
+ * ```
+ *
+ * Next, create an observation instance with a function that reads the observable value:
+ *
+ * ```js
+ * var observation = new Observation(function(){
+ *   return "Hello "+me.name;
+ * }, null, function(newVal, oldVal, batchNum){
+ *   console.log(newVal);
+ * })
+ * ```
+ *
+ * Finally, call `observation.start()` to start listening and be notified of changes:
+ *
+ * ```js
+ * observation.start();
+ * observation.value   //-> "Hello Justin";
+ * me.name = "Ramiya"; // console.logs -> "Hello Ramiya"
+ * ```
  */
 
 function Observation(func, context, compute){
@@ -124,17 +189,31 @@ assign(Observation.prototype,{
 			// Keep the old value.
 			var oldValue = this.value;
 			// Get the new value and register this event handler to any new observables.
-			this.getValueAndBind();
+			this.start();
 			// Update the compute with the new value.
 			this.compute.updater(this.value, oldValue, batchNum);
 		}
+	},
+	getValueAndBind: function() {
+		console.warn("can-observation: call start instead of getValueAndBind");
+		return this.start();
 	},
 	// ## getValueAndBind
 	// Calls `func` with "this" as `context` and binds to any observables that
 	// `func` reads. When any of those observables change, `onchanged` is called.
 	// `oldObservation` is A map of observable / event pairs this function used to be listening to.
 	// Returns the `newInfo` set of listeners and the value `func` returned.
-	getValueAndBind: function() {
+	/**
+	 * @function can-observation.prototype.start start
+	 * @parent can-observation.prototype prototype
+	 *
+	 * @signature `observation.start()`
+	 *
+	 * Starts observing changes and adds event listeners. [can-observation.prototype.value] will
+	 * be available.
+	 *
+	 */
+	start: function(){
 		this.bound = true;
 		this.oldObserved = this.newObserved || {};
 		this.ignore = 0;
@@ -174,6 +253,19 @@ assign(Observation.prototype,{
 		}
 	},
 	teardown: function(){
+		console.warn("can-observation: call stop instead of teardown");
+		return this.stop();
+	},
+	/**
+	 * @function can-observation.prototype.stop stop
+	 * @parent can-observation.prototype prototype
+	 *
+	 * @signature `observation.stop()`
+	 *
+	 * Stops observing changes and removes all event listeners.
+	 *
+	 */
+	stop: function(){
 		// track this because events can be in the queue.
 		this.bound = false;
 		for (var name in this.newObserved) {
@@ -182,11 +274,17 @@ assign(Observation.prototype,{
 		}
 		this.newObserved = {};
 	}
+	/**
+	 * @property {*} can-observation.prototype.value
+	 *
+	 * The return value of the function once [can-observation.prototype.start] is called.
+	 *
+	 */
 });
 
 /**
- * @typedef {{}} observed observed
- * @parent can-observation
+ * @typedef {{}} can-observation.observed Observed
+ * @parent can-observation.types
  *
  * @description
  *
@@ -254,8 +352,12 @@ Observation.batchEnd = function(batchNum){
 };
 
 /**
- * @function Observation.add add
- * @parent can-observation
+ * @function can-observation.add add
+ * @parent can-observation.static
+ *
+ * Signals that an object's property is being observed, so that any functions
+ * that are recording observations will see that this object is a dependency.
+ *
  * @signature `Observation.add(obj, event)`
  *
  * Signals that an event should be observed. Adds the observable being read to
@@ -267,9 +369,7 @@ Observation.batchEnd = function(batchNum){
  *
  * @param {Object} obj An observable object which is being observed.
  * @param {String} event The name of the event (or property) that is being observed.
- * @body
  *
- * Signals that an object's property is being observed, so that any functions that are recording observations will see that this object is a dependency.
  */
 Observation.add = function (obj, event) {
 	var top = observationStack[observationStack.length-1];
@@ -290,12 +390,12 @@ Observation.add = function (obj, event) {
 };
 
 /**
- * @function Observation.addAll addAll
- * @parent can-observation
+ * @function can-observation.addAll addAll
+ * @parent can-observation.static
  * @signature `Observation.addAll(observes)`
  *
- * The same as `Observation.add` but takes an array of [observed] objects.
- * This will most often by used in coordination with [Observation.trap]:
+ * The same as `Observation.add` but takes an array of [can-observation.observed] objects.
+ * This will most often by used in coordination with [can-observation.trap]:
  *
  * ```js
  * var untrap = Observation.trap();
@@ -306,7 +406,7 @@ Observation.add = function (obj, event) {
  * Oservation.addAll(traps);
  * ```
  *
- * @param {Array<observed>} observes An array of [observed]s.
+ * @param {Array<can-observation.observed>} observes An array of [can-observation.observed]s.
  */
 Observation.addAll = function(observes){
 	// a bit more optimized so we don't have to repeat everything in
@@ -330,8 +430,8 @@ Observation.addAll = function(observes){
 };
 
 /**
- * @function Observation.ignore ignore
- * @parent can-observation
+ * @function can-observation.ignore ignore
+ * @parent can-observation.static
  * @signature `Observation.ignore(fn)`
  *
  * Creates a function that, when called, will prevent observations from
@@ -347,7 +447,7 @@ Observation.addAll = function(observes){
  * Observation.trapCount(); // -> 0
  * ```
  *
- * @param {Function} fn Any function that contains potential calls to 
+ * @param {Function} fn Any function that contains potential calls to
  * [Observation.add].
  *
  * @return {Function} A function that is free of observation side-effects.
@@ -368,11 +468,11 @@ Observation.ignore = function(fn){
 
 
 /**
- * @function Observation.trap trap
- * @parent can-observation
+ * @function can-observation.trap trap
+ * @parent can-observation.static
  * @signature `Observation.trap()`
  *
- * Trap all observations until the `untrap` function is called. The state of 
+ * Trap all observations until the `untrap` function is called. The state of
  * traps prior to `Observation.trap()` will be restored when `untrap()` is called.
  *
  * ```js
@@ -384,7 +484,7 @@ Observation.ignore = function(fn){
  * console.log(traps[0].obj === obj); // -> true
  * ```
  *
- * @return {Function} A function to untrap the current observations.
+ * @return {can-observation.getTrapped} A function to get the trapped observations.
  */
 Observation.trap = function(){
 	if (observationStack.length) {
@@ -399,6 +499,16 @@ Observation.trap = function(){
 		return function(){return [];};
 	}
 };
+/**
+ * @typedef {function} can-observation.getTrapped getTrapped
+ * @parent can-observation.types
+ *
+ * @signature `getTrapped()`
+ *
+ *   Returns the trapped observables captured by [can-observation.trap].
+ *
+ *   @return {Array<can-observation.observed>}
+ */
 
 Observation.trapsCount = function(){
 	if (observationStack.length) {
@@ -411,8 +521,8 @@ Observation.trapsCount = function(){
 // sets an array of observable notifications on the current top of the observe stack.
 
 /**
- * @function Observation.isRecording isRecording
- * @parent can-observation
+ * @function can-observation.isRecording isRecording
+ * @parent can-observation.static
  * @signature `Observation.isRecording()`
  *
  * Returns if some function is in the process of recording observes.

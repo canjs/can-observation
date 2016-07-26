@@ -29,7 +29,7 @@ test("can.Compute.read can read a promise (#179)", function(){
 			start();
 		}
 	});
-	c.getValueAndBind();
+	c.start();
 
 	stop();
 
@@ -81,7 +81,7 @@ test('able to read things like can-define', 3, function(){
 
 		}
 	});
-	c.getValueAndBind();
+	c.start();
 
 
 });
@@ -101,6 +101,6 @@ test("foundObservable called with observable object (#7)", function(){
 			}
 		});
 	}, null,{});
-	c.getValueAndBind();
+	c.start();
 
 });
