@@ -227,19 +227,22 @@ observeReader = {
 				if(value == null) {
 					return undefined;
 				} else {
-					if(prop.key in value) {
+					if(typeof value === "object") {
+						if(prop.key in value) {
+							return value[prop.key];
+						}
+						// TODO: remove in 3.0.  This is for backwards compat with @key and @index.
+						else if( prop.at && specialRead[prop.key] && ( ("@"+prop.key) in value)) {
+							//!steal-remove-start
+							dev.warn("Use %"+prop.key+" in place of @"+prop.key+".");
+
+							//!steal-remove-end
+
+							return value["@"+prop.key];
+						}
+					} else {
 						return value[prop.key];
 					}
-					// TODO: remove in 3.0.  This is for backwards compat with @key and @index.
-					else if( prop.at && specialRead[prop.key] && ( ("@"+prop.key) in value)) {
-						//!steal-remove-start
-						dev.warn("Use %"+prop.key+" in place of @"+prop.key+".");
-
-						//!steal-remove-end
-						
-						return value["@"+prop.key];
-					}
-
 				}
 			}
 		}

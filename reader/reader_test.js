@@ -104,3 +104,10 @@ test("foundObservable called with observable object (#7)", function(){
 	c.start();
 
 });
+
+test("can read from strings", function(){
+	var context = " hi there ";
+
+	var result =  observeReader.read(context,observeReader.reads("trim"),{});
+	QUnit.ok(result, context.trim);
+});
