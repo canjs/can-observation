@@ -301,9 +301,11 @@ assign(Observation.prototype,{
 
 var updateOrder = [],
 	curPrimaryDepth = Infinity,
-	maxPrimaryDepth = 0;
+	maxPrimaryDepth = 0,
+	currentBatchNum;
 
-// could get a registerUpdate from a 5 while a 1 is going on because the 5 listens to the 1
+// could get a registerUpdate from a 5 while a 1 is going on
+// because the 5 listens to the 1
 Observation.registerUpdate = function(observeInfo, batchNum){
 	var depth = observeInfo.getDepth()-1;
 	var primaryDepth = observeInfo.getPrimaryDepth();
@@ -325,9 +327,38 @@ Observation.registerUpdate = function(observeInfo, batchNum){
 	primary.max = Math.max(depth, primary.max);
 };
 
-Observation.batchEnd = function(batchNum){
+/*
+ * update all computes to the specified place.
+ */
+Observation.updateUntil = function(observedInfo){
 	var cur;
 
+	while(true) {
+		if(curPrimaryDepth <= maxPrimaryDepth) {
+			var primary = updateOrder[curPrimaryDepth];
+
+			if(primary && primary.current <= primary.max) {
+				var last = primary.observeInfos[primary.current];
+				if(last && (cur = last.pop())) {
+					cur.updateCompute(currentBatchNum);
+					if(cur === observedInfo) {
+						return;
+					}
+				} else {
+					primary.current++;
+				}
+			} else {
+				curPrimaryDepth++;
+			}
+		} else {
+			return;
+		}
+	}
+};
+
+Observation.batchEnd = function(batchNum){
+	var cur;
+	currentBatchNum = batchNum;
 	while(true) {
 		if(curPrimaryDepth <= maxPrimaryDepth) {
 			var primary = updateOrder[curPrimaryDepth];
@@ -531,7 +562,8 @@ Observation.trapsCount = function(){
  */
 Observation.isRecording = function(){
 	var len = observationStack.length;
-	return len && (observationStack[len-1].ignore === 0);
+	var last = len && observationStack[len-1];
+	return last && (last.ignore === 0) && last;
 };
 
 canBatch._onDispatchedEvents = Observation.batchEnd;
