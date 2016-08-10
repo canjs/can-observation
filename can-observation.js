@@ -101,7 +101,6 @@ function Observation(func, context, compute){
 	this.ignore = 0;
 	this.inBatch = false;
 	this.ready = false;
-	compute.observedInfo = this;
 	this.setReady = this._setReady.bind(this);
 }
 
@@ -129,6 +128,18 @@ function Observation(func, context, compute){
 var observationStack = [];
 
 assign(Observation.prototype,{
+	get: function(){
+		if(this.bound) {
+			var recordingObservation = Observation.isRecording();
+
+			if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
+				Observation.updateUntil(this);
+			}
+			return this.value;
+		} else {
+			return this.func.call(this.context);
+		}
+	},
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
@@ -306,22 +317,22 @@ var updateOrder = [],
 
 // could get a registerUpdate from a 5 while a 1 is going on
 // because the 5 listens to the 1
-Observation.registerUpdate = function(observeInfo, batchNum){
-	var depth = observeInfo.getDepth()-1;
-	var primaryDepth = observeInfo.getPrimaryDepth();
+Observation.registerUpdate = function(observation, batchNum){
+	var depth = observation.getDepth()-1;
+	var primaryDepth = observation.getPrimaryDepth();
 
 	curPrimaryDepth = Math.min(primaryDepth, curPrimaryDepth);
 	maxPrimaryDepth = Math.max(primaryDepth, maxPrimaryDepth);
 
 	var primary = updateOrder[primaryDepth] ||
 		(updateOrder[primaryDepth] = {
-			observeInfos: [],
+			observations: [],
 			current: Infinity,
 			max: 0
 		});
-	var objs = primary.observeInfos[depth] || (primary.observeInfos[depth] = []);
+	var objs = primary.observations[depth] || (primary.observations[depth] = []);
 
-	objs.push(observeInfo);
+	objs.push(observation);
 
 	primary.current = Math.min(depth, primary.current);
 	primary.max = Math.max(depth, primary.max);
@@ -330,6 +341,7 @@ Observation.registerUpdate = function(observeInfo, batchNum){
 /*
  * update all computes to the specified place.
  */
+/* jshint maxdepth:7*/
 Observation.updateUntil = function(observedInfo){
 	var cur;
 
@@ -338,7 +350,7 @@ Observation.updateUntil = function(observedInfo){
 			var primary = updateOrder[curPrimaryDepth];
 
 			if(primary && primary.current <= primary.max) {
-				var last = primary.observeInfos[primary.current];
+				var last = primary.observations[primary.current];
 				if(last && (cur = last.pop())) {
 					cur.updateCompute(currentBatchNum);
 					if(cur === observedInfo) {
@@ -364,7 +376,7 @@ Observation.batchEnd = function(batchNum){
 			var primary = updateOrder[curPrimaryDepth];
 
 			if(primary && primary.current <= primary.max) {
-				var last = primary.observeInfos[primary.current];
+				var last = primary.observations[primary.current];
 				if(last && (cur = last.pop())) {
 					cur.updateCompute(batchNum);
 				} else {

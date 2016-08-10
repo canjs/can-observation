@@ -1,5 +1,3 @@
-"esversion: 6";
-
 require("./reader/reader_test");
 
 var Observation = require('can-observation');
@@ -9,9 +7,61 @@ var CID = require('can-util/js/cid/cid');
 var assign = require("can-util/js/assign/assign");
 var canEvent = require('can-event');
 var eventLifecycle = require("can-event/lifecycle/lifecycle");
+var canBatch = require("can-event/batch/batch");
 
 
 QUnit.module('can-observation');
+
+// a simple observable and compute to test
+// behaviors that require nesting of Observations
+var simpleObservable = function(value){
+	var obs = {
+		get: function(){
+			Observation.add(this, "value");
+			return this.value;
+		},
+		set: function(value){
+			var old = this.value;
+			this.value = value;
+			canBatch.trigger.call(this, "value",[value, old]);
+		},
+		value: value
+	};
+	assign(obs, canEvent);
+	CID(obs);
+	return obs;
+};
+
+var simpleCompute = function(getter){
+	var observation, fn;
+
+	fn = function(){
+		Observation.add(fn,"change");
+		return observation.get();
+	};
+	CID(fn);
+
+	observation = new Observation(getter, null, function(newVal, oldVal){
+		canBatch.trigger.call(fn, "change",[newVal, oldVal]);
+	});
+
+	fn.observation = observation;
+	assign(fn, canEvent);
+	fn.addEventListener = eventLifecycle.addAndSetup;
+	fn.removeEventListener = eventLifecycle.removeAndTeardown;
+
+	fn._eventSetup = function(){
+		fn.bound = true;
+		observation.start();
+	};
+	fn._eventTeardown = function(){
+		fn.bound = false;
+		observation.stop();
+	};
+	return fn;
+};
+
+
 
 QUnit.test('nested traps are reset onto parent traps', function() {
     var obs1 = assign({}, canEvent);
@@ -44,45 +94,7 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 	oi.start();
 });
 
-var simpleObservable = function(value){
-	var obs = {
-		get: function(){
-			Observation.add(this, "value");
-			return this.value;
-		},
-		set: function(value){
-			var old = this.value;
-			this.value = value;
-			this.dispatch("value",[value, old]);
-		},
-		value: value
-	};
-	assign(obs, canEvent);
-	CID(obs);
-	return obs;
-};
 
-var simpleCompute = function(getter){
-	var fn = function(){
-		return observation.value;
-	};
-
-	var observation = new Observation(getter, null, function(newVal, oldVal){
-		fn.dispatch("change", [newVal, oldVal]);
-	});
-	fn.observedInfo = observation;
-	fn.addEventListener = eventLifecycle.addAndSetup;
-	fn.removeEventListener = eventLifecycle.removeAndTeardown;
-	assign(fn, canEvent);
-	fn._eventSetup = function(){
-		fn.bound = true;
-		observation.start();
-	};
-	fn._eventTeardown = function(){
-		fn.bound = false;
-		observation.stop();
-	};
-};
 
 test("Change propagation in a batch with late bindings (#2412)", function(){
 	console.clear();
@@ -90,44 +102,30 @@ test("Change propagation in a batch with late bindings (#2412)", function(){
 	var rootA = simpleObservable('a');
 	var rootB = simpleObservable('b');
 
-	var childA = new Observation(function() {
-	  console.log('rootA - start eval');
+	var childA = simpleCompute(function() {
 	  return "childA"+rootA.get();
-  	}, null, function(){});
+  	});
 
-	var grandChild = new Observation(function() {
-	  console.log('grandChild - start eval');
+	var grandChild = simpleCompute(function() {
 
 	  var b = rootB.get();
-	  console.log(`grandChild - rootB: ${b}`);
 	  if (b === "b") {
 	    return "grandChild->b";
 	  }
 
 	  var a = childA();
-	  console.log(`grandChild - childA: ${a}`);
 	  return "grandChild->"+a;
 	});
 
-	console.log("rootA",rootA.computeInstance._cid);
-	console.log("rootB",rootB.computeInstance._cid);
-	console.log("childA",childA.computeInstance._cid);
-	console.log("grandChild",grandChild.computeInstance._cid);
+	childA.addEventListener('change', function(ev, newVal, oldVal) {});
 
-	childA.bind('change', function(ev, newVal, oldVal) {
-	  console.log(`childA change: ${newVal}`);
-	});
-
-	grandChild.bind('change', function(ev, newVal, oldVal) {
+	grandChild.addEventListener('change', function(ev, newVal, oldVal) {
 	  equal(newVal, "grandChild->childAA");
 	});
 
-	console.log("GRANCHILD = "+grandChild()); // false
-
-	console.log("\nBATCH START\n");
-	can.batch.start();
-	rootA('A');
-	rootB('B');
-	can.batch.stop();
+	canBatch.start();
+	rootA.set('A');
+	rootB.set('B');
+	canBatch.stop();
 
 });
