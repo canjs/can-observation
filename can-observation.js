@@ -106,12 +106,12 @@ function Observation(func, context, compute){
 
 // ### observationStack
 //
-// This is the stack of all `observedInfo` objects that are the result of
+// This is the stack of all `observation` objects that are the result of
 // recursive `getValueAndBind` calls.
 // `getValueAndBind` can indirectly call itself anytime a compute reads another
 // compute.
 //
-// An `observedInfo` entry looks like:
+// An `observation` entry looks like:
 //
 //     {
 //       observed: {
@@ -124,7 +124,7 @@ function Observation(func, context, compute){
 // Where:
 // - `observed` is a map of `"cid|event"` to the observable and event.
 //   We use keys like `"cid|event"` to quickly identify if we have already observed this observable.
-// - `names` is all the keys so we can quickly tell if two observedInfo objects are the same.
+// - `names` is all the keys so we can quickly tell if two observation objects are the same.
 var observationStack = [];
 
 assign(Observation.prototype,{
@@ -165,14 +165,14 @@ assign(Observation.prototype,{
 	},
 	addEdge: function(objEv){
 		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observedInfo) {
-			this.childDepths[objEv.obj._cid] = objEv.obj.observedInfo.getDepth();
+		if(objEv.obj.observation) {
+			this.childDepths[objEv.obj._cid] = objEv.obj.observation.getDepth();
 			this.depth = null;
 		}
 	},
 	removeEdge: function(objEv){
 		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observedInfo) {
+		if(objEv.obj.observation) {
 			delete this.childDepths[objEv.obj._cid];
 			this.depth = null;
 		}
@@ -231,8 +231,8 @@ assign(Observation.prototype,{
 		this.newObserved = {};
 		this.ready = false;
 
-		// Add this function call's observedInfo to the stack,
-		// runs the function, pops off the observedInfo, and returns it.
+		// Add this function call's observation to the stack,
+		// runs the function, pops off the observation, and returns it.
 
 		observationStack.push(this);
 		this.value = this.func.call(this.context);
@@ -342,7 +342,7 @@ Observation.registerUpdate = function(observation, batchNum){
  * update all computes to the specified place.
  */
 /* jshint maxdepth:7*/
-Observation.updateUntil = function(observedInfo){
+Observation.updateUntil = function(observation){
 	var cur;
 
 	while(true) {
@@ -353,7 +353,7 @@ Observation.updateUntil = function(observedInfo){
 				var last = primary.observations[primary.current];
 				if(last && (cur = last.pop())) {
 					cur.updateCompute(currentBatchNum);
-					if(cur === observedInfo) {
+					if(cur === observation) {
 						return;
 					}
 				} else {
