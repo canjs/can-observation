@@ -6,8 +6,62 @@ var CID = require('can-util/js/cid/cid');
 
 var assign = require("can-util/js/assign/assign");
 var canEvent = require('can-event');
+var eventLifecycle = require("can-event/lifecycle/lifecycle");
+var canBatch = require("can-event/batch/batch");
+
 
 QUnit.module('can-observation');
+
+// a simple observable and compute to test
+// behaviors that require nesting of Observations
+var simpleObservable = function(value){
+	var obs = {
+		get: function(){
+			Observation.add(this, "value");
+			return this.value;
+		},
+		set: function(value){
+			var old = this.value;
+			this.value = value;
+			canBatch.trigger.call(this, "value",[value, old]);
+		},
+		value: value
+	};
+	assign(obs, canEvent);
+	CID(obs);
+	return obs;
+};
+
+var simpleCompute = function(getter){
+	var observation, fn;
+
+	fn = function(){
+		Observation.add(fn,"change");
+		return observation.get();
+	};
+	CID(fn);
+
+	observation = new Observation(getter, null, function(newVal, oldVal){
+		canBatch.trigger.call(fn, "change",[newVal, oldVal]);
+	});
+
+	fn.observation = observation;
+	assign(fn, canEvent);
+	fn.addEventListener = eventLifecycle.addAndSetup;
+	fn.removeEventListener = eventLifecycle.removeAndTeardown;
+
+	fn._eventSetup = function(){
+		fn.bound = true;
+		observation.start();
+	};
+	fn._eventTeardown = function(){
+		fn.bound = false;
+		observation.stop();
+	};
+	return fn;
+};
+
+
 
 QUnit.test('nested traps are reset onto parent traps', function() {
     var obs1 = assign({}, canEvent);
@@ -38,4 +92,40 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 	});
 
 	oi.start();
+});
+
+
+
+test("Change propagation in a batch with late bindings (#2412)", function(){
+	console.clear();
+
+	var rootA = simpleObservable('a');
+	var rootB = simpleObservable('b');
+
+	var childA = simpleCompute(function() {
+	  return "childA"+rootA.get();
+  	});
+
+	var grandChild = simpleCompute(function() {
+
+	  var b = rootB.get();
+	  if (b === "b") {
+	    return "grandChild->b";
+	  }
+
+	  var a = childA();
+	  return "grandChild->"+a;
+	});
+
+	childA.addEventListener('change', function(ev, newVal, oldVal) {});
+
+	grandChild.addEventListener('change', function(ev, newVal, oldVal) {
+	  equal(newVal, "grandChild->childAA");
+	});
+
+	canBatch.start();
+	rootA.set('A');
+	rootB.set('B');
+	canBatch.stop();
+
 });

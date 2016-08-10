@@ -101,18 +101,17 @@ function Observation(func, context, compute){
 	this.ignore = 0;
 	this.inBatch = false;
 	this.ready = false;
-	compute.observedInfo = this;
 	this.setReady = this._setReady.bind(this);
 }
 
 // ### observationStack
 //
-// This is the stack of all `observedInfo` objects that are the result of
+// This is the stack of all `observation` objects that are the result of
 // recursive `getValueAndBind` calls.
 // `getValueAndBind` can indirectly call itself anytime a compute reads another
 // compute.
 //
-// An `observedInfo` entry looks like:
+// An `observation` entry looks like:
 //
 //     {
 //       observed: {
@@ -125,10 +124,22 @@ function Observation(func, context, compute){
 // Where:
 // - `observed` is a map of `"cid|event"` to the observable and event.
 //   We use keys like `"cid|event"` to quickly identify if we have already observed this observable.
-// - `names` is all the keys so we can quickly tell if two observedInfo objects are the same.
+// - `names` is all the keys so we can quickly tell if two observation objects are the same.
 var observationStack = [];
 
 assign(Observation.prototype,{
+	get: function(){
+		if(this.bound) {
+			var recordingObservation = Observation.isRecording();
+
+			if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
+				Observation.updateUntil(this);
+			}
+			return this.value;
+		} else {
+			return this.func.call(this.context);
+		}
+	},
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
@@ -154,14 +165,14 @@ assign(Observation.prototype,{
 	},
 	addEdge: function(objEv){
 		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observedInfo) {
-			this.childDepths[objEv.obj._cid] = objEv.obj.observedInfo.getDepth();
+		if(objEv.obj.observation) {
+			this.childDepths[objEv.obj._cid] = objEv.obj.observation.getDepth();
 			this.depth = null;
 		}
 	},
 	removeEdge: function(objEv){
 		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observedInfo) {
+		if(objEv.obj.observation) {
 			delete this.childDepths[objEv.obj._cid];
 			this.depth = null;
 		}
@@ -220,8 +231,8 @@ assign(Observation.prototype,{
 		this.newObserved = {};
 		this.ready = false;
 
-		// Add this function call's observedInfo to the stack,
-		// runs the function, pops off the observedInfo, and returns it.
+		// Add this function call's observation to the stack,
+		// runs the function, pops off the observation, and returns it.
 
 		observationStack.push(this);
 		this.value = this.func.call(this.context);
@@ -301,31 +312,37 @@ assign(Observation.prototype,{
 
 var updateOrder = [],
 	curPrimaryDepth = Infinity,
-	maxPrimaryDepth = 0;
+	maxPrimaryDepth = 0,
+	currentBatchNum;
 
-// could get a registerUpdate from a 5 while a 1 is going on because the 5 listens to the 1
-Observation.registerUpdate = function(observeInfo, batchNum){
-	var depth = observeInfo.getDepth()-1;
-	var primaryDepth = observeInfo.getPrimaryDepth();
+// could get a registerUpdate from a 5 while a 1 is going on
+// because the 5 listens to the 1
+Observation.registerUpdate = function(observation, batchNum){
+	var depth = observation.getDepth()-1;
+	var primaryDepth = observation.getPrimaryDepth();
 
 	curPrimaryDepth = Math.min(primaryDepth, curPrimaryDepth);
 	maxPrimaryDepth = Math.max(primaryDepth, maxPrimaryDepth);
 
 	var primary = updateOrder[primaryDepth] ||
 		(updateOrder[primaryDepth] = {
-			observeInfos: [],
+			observations: [],
 			current: Infinity,
 			max: 0
 		});
-	var objs = primary.observeInfos[depth] || (primary.observeInfos[depth] = []);
+	var objs = primary.observations[depth] || (primary.observations[depth] = []);
 
-	objs.push(observeInfo);
+	objs.push(observation);
 
 	primary.current = Math.min(depth, primary.current);
 	primary.max = Math.max(depth, primary.max);
 };
 
-Observation.batchEnd = function(batchNum){
+/*
+ * update all computes to the specified place.
+ */
+/* jshint maxdepth:7*/
+Observation.updateUntil = function(observation){
 	var cur;
 
 	while(true) {
@@ -333,7 +350,33 @@ Observation.batchEnd = function(batchNum){
 			var primary = updateOrder[curPrimaryDepth];
 
 			if(primary && primary.current <= primary.max) {
-				var last = primary.observeInfos[primary.current];
+				var last = primary.observations[primary.current];
+				if(last && (cur = last.pop())) {
+					cur.updateCompute(currentBatchNum);
+					if(cur === observation) {
+						return;
+					}
+				} else {
+					primary.current++;
+				}
+			} else {
+				curPrimaryDepth++;
+			}
+		} else {
+			return;
+		}
+	}
+};
+
+Observation.batchEnd = function(batchNum){
+	var cur;
+	currentBatchNum = batchNum;
+	while(true) {
+		if(curPrimaryDepth <= maxPrimaryDepth) {
+			var primary = updateOrder[curPrimaryDepth];
+
+			if(primary && primary.current <= primary.max) {
+				var last = primary.observations[primary.current];
 				if(last && (cur = last.pop())) {
 					cur.updateCompute(batchNum);
 				} else {
@@ -531,7 +574,8 @@ Observation.trapsCount = function(){
  */
 Observation.isRecording = function(){
 	var len = observationStack.length;
-	return len && (observationStack[len-1].ignore === 0);
+	var last = len && observationStack[len-1];
+	return last && (last.ignore === 0) && last;
 };
 
 canBatch._onDispatchedEvents = Observation.batchEnd;
