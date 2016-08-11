@@ -128,12 +128,16 @@ function Observation(func, context, compute){
 var observationStack = [];
 
 assign(Observation.prototype,{
+	// something is reading the value of this compute
 	get: function(){
 		if(this.bound) {
+			// we've already got a value.  However, it might be possible that
+			// something else is going to read this that has a lower "depth".
+			// We might be updating, so we want to make sure that before we give
+			// the outer compute a value, we've had a change to update.
 			var recordingObservation = Observation.isRecording();
-
 			if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
-				Observation.updateUntil(this);
+				Observation.updateUntil(this.getPrimaryDepth(), this.getDepth());
 			}
 			return this.value;
 		} else {
@@ -342,22 +346,27 @@ Observation.registerUpdate = function(observation, batchNum){
  * update all computes to the specified place.
  */
 /* jshint maxdepth:7*/
-Observation.updateUntil = function(observation){
+// the problem with updateTo(observation)
+// is that that the read might never change
+// but the reader might be changing, and wont update itself, but something
+// else will
+Observation.updateUntil = function(primaryDepth, depth){
 	var cur;
 
 	while(true) {
-		if(curPrimaryDepth <= maxPrimaryDepth) {
+		if(curPrimaryDepth <= maxPrimaryDepth && curPrimaryDepth <= primaryDepth) {
 			var primary = updateOrder[curPrimaryDepth];
 
 			if(primary && primary.current <= primary.max) {
+				if(primary.current > depth) {
+					return;
+				}
 				var last = primary.observations[primary.current];
 				if(last && (cur = last.pop())) {
 					cur.updateCompute(currentBatchNum);
-					if(cur === observation) {
-						return;
-					}
 				} else {
 					primary.current++;
+
 				}
 			} else {
 				curPrimaryDepth++;

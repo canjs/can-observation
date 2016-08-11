@@ -32,20 +32,23 @@ var simpleObservable = function(value){
 	return obs;
 };
 
-var simpleCompute = function(getter){
+var simpleCompute = function(getter, name, primaryDepth){
 	var observation, fn;
 
 	fn = function(){
 		Observation.add(fn,"change");
 		return observation.get();
 	};
-	CID(fn);
+	CID(fn, name);
+	fn.updater = function(newVal, oldVal, batchNum){
+		canBatch.trigger.call(fn, {type: "change", batchNum: batchNum},[newVal, oldVal]);
+	};
+	fn._primaryDepth = primaryDepth || 0;
 
-	observation = new Observation(getter, null, function(newVal, oldVal){
-		canBatch.trigger.call(fn, "change",[newVal, oldVal]);
-	});
+	observation = new Observation(getter, null, fn);
 
 	fn.observation = observation;
+
 	assign(fn, canEvent);
 	fn.addEventListener = eventLifecycle.addAndSetup;
 	fn.removeEventListener = eventLifecycle.removeAndTeardown;
@@ -103,19 +106,19 @@ test("Change propagation in a batch with late bindings (#2412)", function(){
 	var rootB = simpleObservable('b');
 
 	var childA = simpleCompute(function() {
-	  return "childA"+rootA.get();
-  	});
+		return "childA"+rootA.get();
+	},'childA');
 
 	var grandChild = simpleCompute(function() {
 
-	  var b = rootB.get();
-	  if (b === "b") {
-	    return "grandChild->b";
-	  }
+		var b = rootB.get();
+		if (b === "b") {
+			return "grandChild->b";
+		}
 
-	  var a = childA();
-	  return "grandChild->"+a;
-	});
+		var a = childA();
+		return "grandChild->"+a;
+	},'grandChild');
 
 	childA.addEventListener('change', function(ev, newVal, oldVal) {});
 
@@ -127,5 +130,52 @@ test("Change propagation in a batch with late bindings (#2412)", function(){
 	rootA.set('A');
 	rootB.set('B');
 	canBatch.stop();
+
+});
+
+test("deeply nested computes that are read that don't allow deeper primary depth computes to complete first", function(){
+
+	// This is to setup `grandChild` which will be forced
+	// into reading `childA` which has a higher depth then itself, but isn't changing.
+	// This makes sure that it will get a value for childA before
+	// continuing on to deeper "primary depth" computes (things that are nested in stache).
+	var rootA = simpleObservable('a');
+	var rootB = simpleObservable('b');
+
+	var childA = simpleCompute(function() {
+		return "childA"+rootA.get();
+	},'childA');
+
+	var grandChild = simpleCompute(function() {
+		if(rootB.get() === 'b') {
+			return 'grandChild->b';
+		}
+		return childA();
+	},'grandChild');
+
+	// this should update last
+	var deepThing = simpleCompute(function(){
+		return rootB.get();
+	},"deepThing", 4);
+
+	var order = [];
+
+	childA.addEventListener("change", function(){});
+
+	deepThing.addEventListener("change", function(){
+		order.push("deepThing");
+	});
+
+	grandChild.addEventListener("change", function(ev, newVal){
+		order.push("grandChild "+newVal);
+	});
+
+
+	canBatch.start();
+	rootB.set('B');
+	canBatch.stop();
+
+
+	QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
 
 });
