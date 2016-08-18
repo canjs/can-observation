@@ -4,6 +4,7 @@ var CID = require('can-util/js/cid/cid');
 var types = require('can-util/js/types/types');
 var dev = require('can-util/js/dev/dev');
 var canEvent = require('can-event');
+var each = require("can-util/js/each/each");
 
 var observeReader;
 var isAt = function(index, reads) {
@@ -123,6 +124,10 @@ observeReader = {
 			parent: prev
 		};
 	},
+	get: function(parent, reads, options){
+		return observeReader.read(parent, observeReader.reads(reads), options || {}).value;
+	},
+	valueReadersMap: {},
 	// an array of types that might have a value inside them like functions
 	// value readers check the current value
 	// and get a new value from it
@@ -159,21 +164,36 @@ observeReader = {
 					return value;
 				}
 				return value.get ? value.get() : value();
+			},
+			write: function(base, newVal){
+				if(base.set) {
+					base.set(newVal);
+				} else {
+					base(newVal);
+				}
 			}
 		}],
+	propertyReadersMap: {},
 	// an array of things that might have a property
 	propertyReaders: [
 		{
 			name: "map",
 			test: function(){
-				return types.isMapLike.apply(this, arguments);
+				return types.isMapLike.apply(this, arguments) || types.isListLike.apply(this, arguments);
 			},
 			read: function(value, prop, index, options, state){
-				var res = value.attr(prop.key);
+				var res = value["get" in value ? "get" : "attr"](prop.key);
 				if(res !== undefined) {
 					return res;
 				} else {
 					return value[prop.key];
+				}
+			},
+			write: function(base, prop, newVal){
+				if(base.set) {
+					base.set(prop, newVal);
+				} else {
+					base.attr(prop, newVal);
 				}
 			}
 		},
@@ -244,6 +264,9 @@ observeReader = {
 						return value[prop.key];
 					}
 				}
+			},
+			write: function(base, prop, newVal){
+				base[prop] = newVal;
 			}
 		}
 	],
@@ -282,24 +305,33 @@ observeReader = {
 	},
 	// This should be able to set a property similar to how read works.
 	write: function(parent, key, value, options) {
-		options = options || {};
-		if(types.isMapLike(parent)) {
-			// HACK! ... check if the attr is a comptue, if it is, set it.
-			if(!options.isArgument && parent._data && parent._data[key] && parent._data[key].isComputed) {
-				return parent._data[key](value);
-			} else {
-				return parent.attr(key, value);
-			}
+		var keys = observeReader.reads(key);
+		var last;
+		if(keys.length > 1) {
+			last = keys.pop();
+			parent = observeReader.read(parent, keys, options).value;
+			keys.push(last);
+		} else {
+			last = keys[0];
 		}
-
-		if(parent[key] && parent[key].isComputed) {
-			return parent[key](value);
+		// here's where we need to figure out the best way to write
+		if(observeReader.propertyReadersMap.map.test(parent)) {
+			observeReader.propertyReadersMap.map.write(parent, last.key, value, options);
 		}
-
-		if(typeof parent === 'object') {
-			parent[key] = value;
+		else if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options)  ) {
+			observeReader.valueReadersMap.compute.write(parent[last.key], value, options);
+		}
+		else if(observeReader.propertyReadersMap.object.test(parent)) {
+			observeReader.propertyReadersMap.object.write(parent, last.key, value, options);
 		}
 	}
 };
+each(observeReader.propertyReaders, function(reader){
+	observeReader.propertyReadersMap[reader.name] = reader;
+});
+each(observeReader.valueReaders, function(reader){
+	observeReader.valueReadersMap[reader.name] = reader;
+});
+observeReader.set = observeReader.write;
 
 module.exports = observeReader;
