@@ -315,11 +315,11 @@ observeReader = {
 			last = keys[0];
 		}
 		// here's where we need to figure out the best way to write
-		if(observeReader.propertyReadersMap.map.test(parent)) {
-			observeReader.propertyReadersMap.map.write(parent, last.key, value, options);
-		}
-		else if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options)  ) {
+		if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options)  ) {
 			observeReader.valueReadersMap.compute.write(parent[last.key], value, options);
+		}
+		else if(observeReader.propertyReadersMap.map.test(parent)) {
+			observeReader.propertyReadersMap.map.write(parent, last.key, value, options);
 		}
 		else if(observeReader.propertyReadersMap.object.test(parent)) {
 			observeReader.propertyReadersMap.object.write(parent, last.key, value, options);
