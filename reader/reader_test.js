@@ -161,3 +161,11 @@ test("write to compute in object", function(){
 
 	QUnit.equal(obj.compute(), 3, "value set");
 });
+
+test("write to a map in a compute", function(){
+	var map = new DefineMap({complete: true});
+	var computeObject = compute(map);
+	observeReader.write(computeObject, "complete", false);
+
+	QUnit.equal(map.complete, false, "value set");
+});
