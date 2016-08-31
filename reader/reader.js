@@ -305,7 +305,7 @@ observeReader = {
 	},
 	// This should be able to set a property similar to how read works.
 	write: function(parent, key, value, options) {
-		var keys = observeReader.reads(key);
+		var keys = typeof key === "string" ? observeReader.reads(key) : key;
 		var last;
 		if(keys.length > 1) {
 			last = keys.pop();
@@ -315,14 +315,20 @@ observeReader = {
 			last = keys[0];
 		}
 		// here's where we need to figure out the best way to write
-		if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options)  ) {
+
+		// if property being set points at a compute, set the compute
+		if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options) ) {
 			observeReader.valueReadersMap.compute.write(parent[last.key], value, options);
-		}
-		else if(observeReader.propertyReadersMap.map.test(parent)) {
-			observeReader.propertyReadersMap.map.write(parent, last.key, value, options);
-		}
-		else if(observeReader.propertyReadersMap.object.test(parent)) {
-			observeReader.propertyReadersMap.object.write(parent, last.key, value, options);
+		} else {
+			if(observeReader.valueReadersMap.compute.test(parent, keys.length - 1, keys, options) ) {
+				parent = parent();
+			}
+			if(observeReader.propertyReadersMap.map.test(parent)) {
+				observeReader.propertyReadersMap.map.write(parent, last.key, value, options);
+			}
+			else if(observeReader.propertyReadersMap.object.test(parent)) {
+				observeReader.propertyReadersMap.object.write(parent, last.key, value, options);
+			}
 		}
 	}
 };
