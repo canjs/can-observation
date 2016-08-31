@@ -321,7 +321,7 @@ observeReader = {
 			observeReader.valueReadersMap.compute.write(parent[last.key], value, options);
 		} else {
 			if(observeReader.valueReadersMap.compute.test(parent, keys.length - 1, keys, options) ) {
-				parent = parent()
+				parent = parent();
 			}
 			if(observeReader.propertyReadersMap.map.test(parent)) {
 				observeReader.propertyReadersMap.map.write(parent, last.key, value, options);
