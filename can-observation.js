@@ -13,8 +13,8 @@
 // - can.__notObserve - Returns a function that can not be observed.
 require('can-event');
 
-var canBatch = require('can-event/batch/');
-var assign = require('can-util/js/assign/');
+var canBatch = require('can-event/batch/batch');
+var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
 
 /**
