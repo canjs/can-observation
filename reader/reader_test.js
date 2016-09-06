@@ -7,8 +7,16 @@ var assign = require("can-util/js/assign/assign");
 var DefineMap = require("can-define/map/map");
 var DefineList = require("can-define/list/list");
 var compute = require("can-compute");
+var eventAsync = require("can-event/async/async");
 
-QUnit.module('can-observation/reader');
+QUnit.module('can-observation/reader',{
+	setup: function(){
+		eventAsync.sync();
+	},
+	teardown: function(){
+		eventAsync.async();
+	}
+});
 
 
 

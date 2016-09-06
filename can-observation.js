@@ -13,9 +13,11 @@
 // - can.__notObserve - Returns a function that can not be observed.
 require('can-event');
 
-var canBatch = require('can-event/batch/');
-var assign = require('can-util/js/assign/');
+var canEvent = require('can-event');
+var canBatch = require('can-event/batch/batch');
+var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
+var eventAsync = require("can-event/async/async");
 
 /**
  * @module {constructor} can-observation
@@ -131,6 +133,7 @@ assign(Observation.prototype,{
 	// something is reading the value of this compute
 	get: function(){
 		if(this.bound) {
+			eventAsync.flush();
 			// we've already got a value.  However, it might be possible that
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
@@ -139,6 +142,7 @@ assign(Observation.prototype,{
 			if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
 				Observation.updateUntil(this.getPrimaryDepth(), this.getDepth());
 			}
+
 			return this.value;
 		} else {
 			return this.func.call(this.context);
@@ -377,7 +381,7 @@ Observation.updateUntil = function(primaryDepth, depth){
 	}
 };
 
-Observation.batchEnd = function(batchNum){
+Observation.batchEnd = function(ev, batchNum){
 	var cur;
 	currentBatchNum = batchNum;
 	while(true) {
@@ -587,6 +591,6 @@ Observation.isRecording = function(){
 	return last && (last.ignore === 0) && last;
 };
 
-canBatch._onDispatchedEvents = Observation.batchEnd;
+canEvent.addEventListener.call(canBatch,"batchEnd", Observation.batchEnd);
 
 module.exports = namespace.Observation = Observation;
