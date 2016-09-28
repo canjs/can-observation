@@ -190,7 +190,7 @@ observeReader = {
 				}
 			},
 			write: function(base, prop, newVal){
-				if(base.set) {
+				if(typeof base.set === "function") {
 					base.set(prop, newVal);
 				} else {
 					base.attr(prop, newVal);

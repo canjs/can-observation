@@ -113,7 +113,6 @@ QUnit.test("Change propagation in a batch with late bindings (#2412)", function(
 	},'childA');
 
 	var grandChild = simpleCompute(function() {
-
 		var b = rootB.get();
 		if (b === "b") {
 			return "grandChild->b";
@@ -126,8 +125,8 @@ QUnit.test("Change propagation in a batch with late bindings (#2412)", function(
 	childA.addEventListener('change', function(ev, newVal, oldVal) {});
 
 	grandChild.addEventListener('change', function(ev, newVal, oldVal) {
-	  equal(newVal, "grandChild->childAA");
-	  QUnit.start();
+		equal(newVal, "grandChild->childAA", "got the right value");
+		QUnit.start();
 	});
 
 	rootA.set('A');
