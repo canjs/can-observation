@@ -101,7 +101,6 @@ function Observation(func, context, compute){
 	this.childDepths = {};
 	this.ignore = 0;
 	this.inBatch = false;
-	this.ready = true;
 }
 
 // ### observationStack
@@ -151,9 +150,6 @@ assign(Observation.prototype,{
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
-	setReady: function(){
-		this.ready = true;
-	},
 	getDepth: function(){
 		if(this.depth !== null) {
 			return this.depth;
@@ -186,16 +182,11 @@ assign(Observation.prototype,{
 		}
 	},
 	dependencyChange: function(ev){
-		if(this.bound && this.ready) {
-			if(ev.batchNum !== undefined) {
-				// Only need to register once per batchNum
-				if(ev.batchNum !== this.batchNum) {
-					Observation.registerUpdate(this, ev.batchNum);
-					this.batchNum = ev.batchNum;
-				}
-			} else {
-				console.warn("There should always be a batch number");
-				this.updateAndNotify(ev.batchNum);
+		if(this.bound) {
+			// Only need to register once per batchNum
+			if(ev.batchNum !== this.batchNum) {
+				Observation.registerUpdate(this, ev.batchNum);
+				this.batchNum = ev.batchNum;
 			}
 		}
 	},
@@ -214,14 +205,6 @@ assign(Observation.prototype,{
 		var oldValue = this.oldValue;
 		this.oldValue = null;
 		this.compute.updater(this.value, oldValue, batchNum);
-	},
-	updateAndNotify: function(batchNum){
-		// It's possible this became unbound since it was registered to update
-		// Only actually update if something didn't come in and unbind it. (#2188).
-		if(this.bound) {
-			this.update(batchNum);
-			this.notify(batchNum);
-		}
 	},
 	getValueAndBind: function() {
 		console.warn("can-observation: call start instead of getValueAndBind");
@@ -247,7 +230,6 @@ assign(Observation.prototype,{
 		this.oldObserved = this.newObserved || {};
 		this.ignore = 0;
 		this.newObserved = {};
-		//this.ready = false;
 
 		// Add this function call's observation to the stack,
 		// runs the function, pops off the observation, and returns it.
@@ -256,10 +238,6 @@ assign(Observation.prototype,{
 		this.value = this.func.call(this.context);
 		observationStack.pop();
 		this.updateBindings();
-
-		// we have updated ourselves to the current point of reality.
-		// Any events that have been queued, but not dispatched, should be ignored.
-		// canBatch.queue([this.setReady, this]);
 	},
 	// ### updateBindings
 	// Unbinds everything in `oldObserved`.
