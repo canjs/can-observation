@@ -384,7 +384,7 @@ Observation.registerUpdate = function(observation, batchNum){
 // the `deeperObservation` will be updated (via `updateUntil`).
 // If the `currentObservation` reads another observation with a higher primary depth (`deeperPrimaryObservation`),
 // the `deeperPrimaryObservation` will be updated, but not have its callback called
-
+var afterCallbacks = [];
 /* jshint maxdepth:7*/
 Observation.updateAndNotify = function(ev, batchNum){
 	currentBatchNum = batchNum;
@@ -445,14 +445,18 @@ Observation.updateAndNotify = function(ev, batchNum){
 		}
 	}
 };
-var afterCallbacks = [];
-Observation.afterUpdateAndNotify = function(callback){
-	if(isUpdating) {
-		afterCallbacks.push(callback);
-	} else {
-		callback();
-	}
 
+Observation.afterUpdateAndNotify = function(callback){
+	canBatch.after(function(){
+		// here we know that the events have been fired, everything should
+		// be notified. Now we have to wait until all computes have
+		// finished firing.
+		if(isUpdating) {
+			afterCallbacks.push(callback);
+		} else {
+			callback();
+		}
+	});
 };
 canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
 

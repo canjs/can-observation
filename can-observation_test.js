@@ -359,3 +359,45 @@ QUnit.test("flush can mean  (canjs/canjs#2151)", function(){
 
 	QUnit.deepEqual(order, ['computeThatGoesSideways start', 'computeThatGoesSideways finish', 'side compute']);
 });
+
+QUnit.test("it's possible canBatch.after is called before observations are updated", 4, function(){
+	var afterCalled, afterUpdateAndNotifyCalled;
+	var rootA = simpleObservable('a');
+	var rootB = simpleObservable('b');
+
+	var leftCompute = simpleCompute(function(){
+		return rootA.get();
+	},'leftCompute');
+
+	var rightCompute = simpleCompute(function(){
+		return rootB.get();
+	},'rightCompute');
+
+
+	leftCompute.addEventListener("change", function(){
+		canBatch.start();
+
+		rootB.set("B");
+
+		canBatch.after(function(){
+			afterCalled = true;
+			QUnit.ok(true, "after is called");
+		});
+		Observation.afterUpdateAndNotify(function(){
+			afterUpdateAndNotifyCalled = true;
+			QUnit.ok(true, "afterUpdateAndNotify is called");
+		});
+
+		canBatch.stop();
+
+		// this is the same as reading a compute
+		canBatch.flush();
+	});
+
+	rightCompute.addEventListener("change", function(){
+		QUnit.ok(afterCalled, "after can be called");
+		QUnit.ok(!afterUpdateAndNotifyCalled, "afterUpdateAndNotifyCalled not called yet");
+	});
+
+	rootA.set("A");
+});
