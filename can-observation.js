@@ -101,6 +101,7 @@ function Observation(func, context, compute){
 	this.childDepths = {};
 	this.ignore = 0;
 	this.inBatch = false;
+	this.needsUpdate= false;
 }
 
 // ### observationStack
@@ -137,10 +138,9 @@ assign(Observation.prototype,{
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
 			// the outer compute a value, we've had a change to update.
-			//var recordingObservation = Observation.isRecording();
-			//if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
-			Observation.update(this);
-			//}
+			if(this.needsUpdate) {
+				Observation.update(this);
+			}
 
 			return this.value;
 		} else {
@@ -194,6 +194,7 @@ assign(Observation.prototype,{
 		this.dependencyChange(ev, newVal, oldVal);
 	},
 	update: function(batchNum){
+		this.needsUpdate = false;
 		if(this.bound) {
 			// Keep the old value.
 			this.oldValue = this.value;
@@ -328,13 +329,15 @@ var updateOrder = [],
 	curPrimaryDepth = Infinity,
 	// the max registered primary depth
 	maxPrimaryDepth = 0,
-	currentBatchNum;
-var isUpdating;
+	currentBatchNum,
+	isUpdating = false;
 
 
 // could get a registerUpdate from a 5 while a 1 is going on
 // because the 5 listens to the 1
 Observation.registerUpdate = function(observation, batchNum){
+	// mark as needing an update
+	observation.needsUpdate = true;
 
 	var depth = observation.getDepth()-1;
 	var primaryDepth = observation.getPrimaryDepth();
@@ -400,12 +403,6 @@ Observation.updateAndNotify = function(ev, batchNum){
 				} else {
 					primary.current++;
 				}
-				/*if(last && (cur = last.pop())) {
-					CURRENT_UPDATE_PRIMARY = primary;
-					cur.updateAndNotify(currentBatchNum);
-				} else {
-					primary.current++;
-				}*/
 			} else {
 				curPrimaryDepth++;
 			}
