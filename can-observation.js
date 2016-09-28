@@ -1,4 +1,4 @@
-// # can-observation
+// # can-observation - nice
 //
 // This module:
 //
@@ -17,7 +17,6 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
-var eventAsync = require("can-event/async/async");
 
 /**
  * @module {constructor} can-observation
@@ -102,8 +101,7 @@ function Observation(func, context, compute){
 	this.childDepths = {};
 	this.ignore = 0;
 	this.inBatch = false;
-	this.ready = false;
-	this.setReady = this._setReady.bind(this);
+	this.ready = true;
 }
 
 // ### observationStack
@@ -133,15 +131,17 @@ assign(Observation.prototype,{
 	// something is reading the value of this compute
 	get: function(){
 		if(this.bound) {
-			eventAsync.flush();
+			// Flush events so this compute should have been notified.
+			// But we want not only update
+			canEvent.flush();
 			// we've already got a value.  However, it might be possible that
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
 			// the outer compute a value, we've had a change to update.
-			var recordingObservation = Observation.isRecording();
-			if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
-				Observation.updateUntil(this.getPrimaryDepth(), this.getDepth());
-			}
+			//var recordingObservation = Observation.isRecording();
+			//if(recordingObservation && this.getDepth() >= recordingObservation.getDepth()) {
+			Observation.update(this);
+			//}
 
 			return this.value;
 		} else {
@@ -151,7 +151,7 @@ assign(Observation.prototype,{
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
-	_setReady: function(){
+	setReady: function(){
 		this.ready = true;
 	},
 	getDepth: function(){
@@ -190,27 +190,37 @@ assign(Observation.prototype,{
 			if(ev.batchNum !== undefined) {
 				// Only need to register once per batchNum
 				if(ev.batchNum !== this.batchNum) {
-					Observation.registerUpdate(this);
+					Observation.registerUpdate(this, ev.batchNum);
 					this.batchNum = ev.batchNum;
 				}
 			} else {
-				this.updateCompute(ev.batchNum);
+				console.warn("There should always be a batch number");
+				this.updateAndNotify(ev.batchNum);
 			}
 		}
 	},
 	onDependencyChange: function(ev, newVal, oldVal){
 		this.dependencyChange(ev, newVal, oldVal);
 	},
-	updateCompute: function(batchNum){
+	update: function(batchNum){
+		if(this.bound) {
+			// Keep the old value.
+			this.oldValue = this.value;
+			// Get the new value and register this event handler to any new observables.
+			this.start();
+		}
+	},
+	notify: function(batchNum){
+		var oldValue = this.oldValue;
+		this.oldValue = null;
+		this.compute.updater(this.value, oldValue, batchNum);
+	},
+	updateAndNotify: function(batchNum){
 		// It's possible this became unbound since it was registered to update
 		// Only actually update if something didn't come in and unbind it. (#2188).
 		if(this.bound) {
-			// Keep the old value.
-			var oldValue = this.value;
-			// Get the new value and register this event handler to any new observables.
-			this.start();
-			// Update the compute with the new value.
-			this.compute.updater(this.value, oldValue, batchNum);
+			this.update(batchNum);
+			this.notify(batchNum);
 		}
 	},
 	getValueAndBind: function() {
@@ -237,7 +247,7 @@ assign(Observation.prototype,{
 		this.oldObserved = this.newObserved || {};
 		this.ignore = 0;
 		this.newObserved = {};
-		this.ready = false;
+		//this.ready = false;
 
 		// Add this function call's observation to the stack,
 		// runs the function, pops off the observation, and returns it.
@@ -246,7 +256,10 @@ assign(Observation.prototype,{
 		this.value = this.func.call(this.context);
 		observationStack.pop();
 		this.updateBindings();
-		canBatch.afterPreviousEvents(this.setReady);
+
+		// we have updated ourselves to the current point of reality.
+		// Any events that have been queued, but not dispatched, should be ignored.
+		// canBatch.queue([this.setReady, this]);
 	},
 	// ### updateBindings
 	// Unbinds everything in `oldObserved`.
@@ -317,15 +330,34 @@ assign(Observation.prototype,{
  * @option {String} event The event, or more likely property, that is being observed.
  */
 
-
+// An array of arrays of observations that need to be updated.
+// The primary sorting is with primaryDepth.  The secondary sorting is depth.
+// [
+//    {
+//      primaryDepth: 0,
+//      current: 0,
+//      max: 19,
+//      observations: [[depth0Observation, depth0Observation], [depth1Observation], [depth19Observation]]
+//    },
+//    {
+//      primaryDepth: 1,
+//      observations: [[depth0Observation, depth0Observation], [depth1Observation], [depth19Observation]]
+//    }
+// ]
+//
 var updateOrder = [],
+	// the min registered primary depth, this is also the next to be executed.
 	curPrimaryDepth = Infinity,
+	// the max registered primary depth
 	maxPrimaryDepth = 0,
 	currentBatchNum;
+var isUpdating;
+
 
 // could get a registerUpdate from a 5 while a 1 is going on
 // because the 5 listens to the 1
 Observation.registerUpdate = function(observation, batchNum){
+
 	var depth = observation.getDepth()-1;
 	var primaryDepth = observation.getPrimaryDepth();
 
@@ -338,63 +370,64 @@ Observation.registerUpdate = function(observation, batchNum){
 			current: Infinity,
 			max: 0
 		});
-	var objs = primary.observations[depth] || (primary.observations[depth] = []);
+	var objs = primary.observations[depth] || (primary.observations[depth] = {updates: [], notifications: []});
 
-	objs.push(observation);
+	objs.updates.push(observation);
 
 	primary.current = Math.min(depth, primary.current);
 	primary.max = Math.max(depth, primary.max);
 };
 
-/*
- * update all computes to the specified place.
- */
+// This picks the observation with the smallest "depth" and
+// calls update on it (`currentObservation`).
+// If the `currentObservation` reads another observation with a higher depth (`deeperObservation`),
+// the `deeperObservation` will be updated (via `updateUntil`).
+// If the `currentObservation` reads another observation with a higher primary depth (`deeperPrimaryObservation`),
+// the `deeperPrimaryObservation` will be updated, but not have its callback called
+
 /* jshint maxdepth:7*/
-// the problem with updateTo(observation)
-// is that that the read might never change
-// but the reader might be changing, and wont update itself, but something
-// else will
-Observation.updateUntil = function(primaryDepth, depth){
-	var cur;
-
-	while(true) {
-		if(curPrimaryDepth <= maxPrimaryDepth && curPrimaryDepth <= primaryDepth) {
-			var primary = updateOrder[curPrimaryDepth];
-
-			if(primary && primary.current <= primary.max) {
-				if(primary.current > depth) {
-					return;
-				}
-				var last = primary.observations[primary.current];
-				if(last && (cur = last.pop())) {
-					cur.updateCompute(currentBatchNum);
-				} else {
-					primary.current++;
-
-				}
-			} else {
-				curPrimaryDepth++;
-			}
-		} else {
-			return;
-		}
-	}
-};
-
-Observation.batchEnd = function(ev, batchNum){
-	var cur;
+Observation.updateAndNotify = function(ev, batchNum){
 	currentBatchNum = batchNum;
+	if(isUpdating){
+		// only allow access at one time to this method.
+		// This is because when calling .update ... that compute should be only able
+		// to cause updates to other computes it directly reads.  It's possible that
+		// reading other computes could call `updateAndNotify` again.
+		// If we didn't return, it's possible that other computes could update unrelated to the
+		// execution flow of the current compute being updated.  This would be very unexpected.
+		return;
+	}
+	isUpdating = true;
 	while(true) {
-		if(curPrimaryDepth <= maxPrimaryDepth) {
+		if( curPrimaryDepth <= maxPrimaryDepth ) {
 			var primary = updateOrder[curPrimaryDepth];
 
 			if(primary && primary.current <= primary.max) {
 				var last = primary.observations[primary.current];
-				if(last && (cur = last.pop())) {
-					cur.updateCompute(batchNum);
+				if(last) {
+					var lastUpdate = last.updates.pop();
+					if(lastUpdate) {
+						last.notifications.push(lastUpdate);
+						lastUpdate.update(currentBatchNum);
+					} else {
+						var lastNotify = last.notifications.pop();
+						if(lastNotify) {
+							//CURRENT_UPDATE_PRIMARY = primary;
+							lastNotify.notify(currentBatchNum);
+						} else {
+							primary.current++;
+						}
+					}
+
 				} else {
 					primary.current++;
 				}
+				/*if(last && (cur = last.pop())) {
+					CURRENT_UPDATE_PRIMARY = primary;
+					cur.updateAndNotify(currentBatchNum);
+				} else {
+					primary.current++;
+				}*/
 			} else {
 				curPrimaryDepth++;
 			}
@@ -402,10 +435,52 @@ Observation.batchEnd = function(ev, batchNum){
 			updateOrder = [];
 			curPrimaryDepth = Infinity;
 			maxPrimaryDepth = 0;
+			isUpdating = false;
+			var afterCB = afterCallbacks.slice(0);
+			afterCallbacks = [];
+			afterCB.forEach(function(cb){
+				cb();
+			});
 			return;
 		}
 	}
 };
+var afterCallbacks = [];
+Observation.afterUpdateAndNotify = function(callback){
+	if(isUpdating) {
+		afterCallbacks.push(callback);
+	} else {
+		callback();
+	}
+
+};
+canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
+
+
+
+// the problem with updateTo(observation)
+// is that that the read might never change
+// but the reader might be changing, and wont update itself, but something
+// else will
+Observation.update = function(observation){
+	var primaryDepth = observation.getPrimaryDepth();
+	var depth = observation.getDepth() - 1;
+	var primary = updateOrder[primaryDepth];
+	if(primary) {
+		var observations = primary.observations[depth];
+		if(observations) {
+			var updates = observations.updates;
+			var index = updates.indexOf(observation);
+			if(index !== -1) {
+				updates.splice(index,1);
+				observation.update(currentBatchNum);
+				observations.notifications.push(observation);
+			}
+		}
+	}
+};
+
+
 
 /**
  * @function can-observation.add add
@@ -591,6 +666,6 @@ Observation.isRecording = function(){
 	return last && (last.ignore === 0) && last;
 };
 
-canEvent.addEventListener.call(canBatch,"batchEnd", Observation.batchEnd);
+
 
 module.exports = namespace.Observation = Observation;

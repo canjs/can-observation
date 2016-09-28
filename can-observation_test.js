@@ -166,7 +166,7 @@ test("deeply nested computes that are read that don't allow deeper primary depth
 
 	childA.addEventListener("change", function(){});
 
-	deepThing.addEventListener("change", function(){
+	deepThing.addEventListener("change", function(ev){
 		order.push("deepThing");
 	});
 
@@ -182,4 +182,180 @@ test("deeply nested computes that are read that don't allow deeper primary depth
 
 	QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
 
+});
+
+test("Reading a compute before the batch has completed", function(){
+	var c1 = simpleObservable(1),
+		c2;
+	c1.on("value", function(){
+		equal(c2(),4, "updated");
+	});
+
+	c2 = simpleCompute(function(){
+		return c1.get() * c1.get();
+	});
+
+	c2.on("change", function(){});
+	c1.set(2);
+});
+
+
+test("a low primary depth reading a high primary depth compute", function(){
+	var order = [];
+
+	var rootB = simpleObservable('b');
+
+	// this should update last
+	var deepThing = simpleCompute(function(){
+		return rootB.get();
+	},"deepThing", 4);
+
+	var grandChild = simpleCompute(function() {
+		if(rootB.get() === 'b') {
+			return 'grandChild->b';
+		}
+		return Observation.ignore(function(){
+			return deepThing();
+		})();
+
+	},'grandChild');
+
+
+
+
+	deepThing.addEventListener("change", function(ev){
+		order.push("deepThing");
+	});
+
+	grandChild.addEventListener("change", function(ev, newVal){
+		QUnit.equal(newVal, "B", "val is updated");
+		order.push("grandChild");
+	});
+
+
+
+	canBatch.start();
+	rootB.set('B');
+	canBatch.stop();
+
+	QUnit.deepEqual(order, ["grandChild","deepThing"]);
+});
+
+
+QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
+	var root = simpleObservable('a');
+
+	var baseCompute = simpleCompute(function(){
+		return root.get();
+	},'baseCompute');
+
+	var compute = simpleCompute(function(){
+		// this base compute read is here just to flush the event queue.
+		// and create no place for `afterPreviousEvents` to do anything.
+		baseCompute();
+
+		// now when this gets added ... it's going to create its own
+		// batch which will call `Observation.updateAndNotify`
+		canBatch.afterPreviousEvents(function(){});
+		return root.get();
+	},"afterPreviousCompute");
+
+	compute.addEventListener("change", function(ev, newVal){
+		QUnit.equal(newVal, "b");
+	});
+
+	root.set("b");
+});
+
+QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
+	var root = simpleObservable('a');
+	var unchangingRoot = simpleObservable('X');
+	var order = [];
+
+	// A compute that will flush the event queue.
+	var pushSidewaysCompute = simpleCompute(function(){
+		return unchangingRoot.get();
+	},'baseCompute');
+
+	// A compute that should evaluate after computeThatGoesSideways
+	var sideCompute = simpleCompute(function(){
+		order.push('side compute');
+		pushSidewaysCompute();
+		return root.get();
+	},'sideCompute');
+
+	var dummyObject = assign({}, canEvent);
+	dummyObject.on("dummyEvent", function(){});
+
+	var computeThatGoesSideways = simpleCompute(function(){
+
+		order.push('computeThatGoesSideways start');
+
+		// Flush the event queue
+		pushSidewaysCompute();
+
+		// Dispatch a new event, which creates a new queue.
+		// This should not cause `sideCompute` to re-run.
+		dummyObject.dispatch("dummyEvent");
+
+		order.push('computeThatGoesSideways finish');
+		return root.get();
+	},"computeThatGoesSideways");
+
+	sideCompute.addEventListener("change", function(ev, newVal){});
+
+	computeThatGoesSideways.addEventListener("change", function(ev, newVal){});
+
+
+	order = [];
+	root.set("b");
+
+	QUnit.deepEqual(order, ['computeThatGoesSideways start', 'computeThatGoesSideways finish', 'side compute']);
+});
+
+
+QUnit.test("flush can mean  (canjs/canjs#2151)", function(){
+	var root = simpleObservable('a');
+	var unchangingRoot = simpleObservable('X');
+	var order = [];
+
+	// A compute that will flush the event queue.
+	var pushSidewaysCompute = simpleCompute(function(){
+		return unchangingRoot.get();
+	},'baseCompute');
+
+	// A compute that should evaluate after computeThatGoesSideways
+	var sideCompute = simpleCompute(function(){
+		order.push('side compute');
+		pushSidewaysCompute();
+		return root.get();
+	},'sideCompute');
+
+	var dummyObject = assign({}, canEvent);
+	dummyObject.on("dummyEvent", function(){});
+
+	var computeThatGoesSideways = simpleCompute(function(){
+
+		order.push('computeThatGoesSideways start');
+
+		// Flush the event queue
+		pushSidewaysCompute();
+
+		// Dispatch a new event, which creates a new queue.
+		// This should not cause `sideCompute` to re-run.
+		dummyObject.dispatch("dummyEvent");
+
+		order.push('computeThatGoesSideways finish');
+		return root.get();
+	},"computeThatGoesSideways");
+
+	sideCompute.addEventListener("change", function(ev, newVal){});
+
+	computeThatGoesSideways.addEventListener("change", function(ev, newVal){});
+
+
+	order = [];
+	root.set("b");
+
+	QUnit.deepEqual(order, ['computeThatGoesSideways start', 'computeThatGoesSideways finish', 'side compute']);
 });
