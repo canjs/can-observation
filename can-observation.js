@@ -138,9 +138,9 @@ assign(Observation.prototype,{
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
 			// the outer compute a value, we've had a change to update.
-			if(this.needsUpdate) {
-				Observation.update(this);
-			}
+
+			Observation.update(this);
+
 
 			return this.value;
 		} else {
@@ -200,9 +200,11 @@ assign(Observation.prototype,{
 			this.oldValue = this.value;
 			// Get the new value and register this event handler to any new observables.
 			this.start();
+			return this.oldValue !== this.value;
 		}
 	},
 	notify: function(batchNum){
+		this.needsNotification = false;
 		var oldValue = this.oldValue;
 		this.oldValue = null;
 		this.compute.updater(this.value, oldValue, batchNum);
@@ -337,6 +339,9 @@ var updateOrder = [],
 // because the 5 listens to the 1
 Observation.registerUpdate = function(observation, batchNum){
 	// mark as needing an update
+	if( observation.needsUpdate ) {
+		return;
+	}
 	observation.needsUpdate = true;
 
 	var depth = observation.getDepth()-1;
@@ -354,6 +359,32 @@ Observation.registerUpdate = function(observation, batchNum){
 	var objs = primary.observations[depth] || (primary.observations[depth] = {updates: [], notifications: []});
 
 	objs.updates.push(observation);
+
+	primary.current = Math.min(depth, primary.current);
+	primary.max = Math.max(depth, primary.max);
+};
+Observation.registerNotification = function(observation, batchNum){
+	// mark as needing an update
+	if( observation.needsNotification ) {
+		return;
+	}
+	observation.needsNotification = true;
+
+	var depth = observation.getDepth()-1;
+	var primaryDepth = observation.getPrimaryDepth();
+
+	curPrimaryDepth = Math.min(primaryDepth, curPrimaryDepth);
+	maxPrimaryDepth = Math.max(primaryDepth, maxPrimaryDepth);
+
+	var primary = updateOrder[primaryDepth] ||
+		(updateOrder[primaryDepth] = {
+			observations: [],
+			current: Infinity,
+			max: 0
+		});
+	var objs = primary.observations[depth] || (primary.observations[depth] = {updates: [], notifications: []});
+
+	objs.notifications.push(observation);
 
 	primary.current = Math.min(depth, primary.current);
 	primary.max = Math.max(depth, primary.max);
@@ -388,8 +419,9 @@ Observation.updateAndNotify = function(ev, batchNum){
 				if(last) {
 					var lastUpdate = last.updates.pop();
 					if(lastUpdate) {
-						last.notifications.push(lastUpdate);
-						lastUpdate.update(currentBatchNum);
+						if( lastUpdate.update(currentBatchNum) ) {
+							Observation.registerNotification(lastUpdate, currentBatchNum);
+						}
 					} else {
 						var lastNotify = last.notifications.pop();
 						if(lastNotify) {
@@ -435,13 +467,35 @@ Observation.afterUpdateAndNotify = function(callback){
 };
 canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
 
-
-
+// This is going to recursively check if there's any child compute
+// that .needsUpdate.
+// If there is, we'll update every parent on the way to ourselves.
+Observation.update = function(observation){
+	// check if there's children that .needsUpdate
+	if(observation.needsUpdate) {
+		return Observation.updateAndRegisterNotify(observation);
+	}
+	var childHasChanged;
+	for(var prop in observation.newObserved) {
+		if(observation.newObserved[prop].obj.observation) {
+			if( Observation.update(observation.newObserved[prop].obj.observation) ) {
+				childHasChanged = true;
+			}
+		}
+	}
+	if(childHasChanged) {
+		var changed = observation.update(currentBatchNum);
+		if(changed) {
+			Observation.registerNotification(observation, currentBatchNum);
+			return true;
+		}
+	}
+};
 // the problem with updateTo(observation)
 // is that that the read might never change
 // but the reader might be changing, and wont update itself, but something
 // else will
-Observation.update = function(observation){
+Observation.updateAndRegisterNotify = function(observation){
 	var primaryDepth = observation.getPrimaryDepth();
 	var depth = observation.getDepth() - 1;
 	var primary = updateOrder[primaryDepth];
@@ -452,10 +506,13 @@ Observation.update = function(observation){
 			var index = updates.indexOf(observation);
 			if(index !== -1) {
 				updates.splice(index,1);
-				observation.update(currentBatchNum);
-				observations.notifications.push(observation);
 			}
 		}
+	}
+	var changed = observation.update(currentBatchNum);
+	if(changed) {
+		Observation.registerNotification(observation, currentBatchNum);
+		return true;
 	}
 };
 
