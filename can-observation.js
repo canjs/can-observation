@@ -17,7 +17,7 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
-
+var remaining = {updates: 0, notifications: 0};
 /**
  * @module {constructor} can-observation
  * @parent can-infrastructure
@@ -337,8 +337,7 @@ var updateOrder = [],
 	// the max registered primary depth
 	maxPrimaryDepth = 0,
 	currentBatchNum,
-	isUpdating = false,
-	remaining = {updates: 0, notifications: 0};
+	isUpdating = false;
 
 
 var updateUpdateOrder = function(observation){
