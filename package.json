@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "can-util": "^3.0.0-pre.56",
-    "can-event": "^3.0.0-pre.15"
+    "can-event": "^3.0.0-pre.16"
   },
   "devDependencies": {
     "bit-docs": "0.0.6",
