@@ -279,6 +279,7 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 
 	// A compute that should evaluate after computeThatGoesSideways
 	var sideCompute = simpleCompute(function(){
+		debugger;
 		order.push('side compute');
 		pushSidewaysCompute();
 		return root.get();
@@ -359,7 +360,7 @@ QUnit.test("flush can mean  (canjs/canjs#2151)", function(){
 
 	QUnit.deepEqual(order, ['computeThatGoesSideways start', 'computeThatGoesSideways finish', 'side compute']);
 });
-
+/*
 QUnit.test("it's possible canBatch.after is called before observations are updated", 4, function(){
 	var afterCalled, afterUpdateAndNotifyCalled;
 	var rootA = simpleObservable('a');
@@ -400,4 +401,36 @@ QUnit.test("it's possible canBatch.after is called before observations are updat
 	});
 
 	rootA.set("A");
+});
+*/
+QUnit.test("calling a deep compute when only its child should have been updated (#19)", 2, function(){
+
+	// the problem is that childCompute knows it needs to change
+	// but we are reading grandChildCompute.
+	var rootA = simpleObservable('a');
+	var sideObservable = simpleObservable('x');
+
+	var sideCompute = simpleCompute(function(){
+		return sideObservable.get();
+	});
+
+	var childCompute = simpleCompute(function(){
+		return "c-"+rootA.get();
+	},'childCompute');
+	childCompute.addEventListener("change", function(){});
+
+	var grandChildCompute = simpleCompute(function(){
+		return "gc-"+childCompute();
+	});
+	grandChildCompute.addEventListener("change", function(ev, newValue){
+		QUnit.equal(newValue, "gc-c-B", "one change event");
+	});
+
+	sideCompute.addEventListener("change", function(){
+		rootA.set("B");
+		QUnit.equal( grandChildCompute(), "gc-c-B", "read new value");
+	});
+
+	sideObservable.set("X");
+
 });
