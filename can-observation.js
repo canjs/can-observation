@@ -17,7 +17,31 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
+var each = require('can-util/js/each/each');
+var CID = require('can-util/js/cid/cid');
+
 var remaining = {updates: 0, notifications: 0};
+
+if(window.Set) {
+	CIDSet = window.Set;
+} else {
+	var CIDSet = function(){
+		this.values = {};
+	};
+	CIDSet.prototype.add = function(value){
+		this.values[value._cid] = value;
+	};
+	CIDSet.prototype["delete"] = function(value){
+		delete this.values[value._cid];
+	};
+	CIDSet.prototype.forEach = function(cb) {
+		each(this.values, cb);
+	};
+}
+
+
+
+
 /**
  * @module {constructor} can-observation
  * @parent can-infrastructure
@@ -102,6 +126,9 @@ function Observation(func, context, compute){
 	this.ignore = 0;
 	this.inBatch = false;
 	this.needsUpdate= false;
+	// stored for faster event binding
+	this.parentObservations = new CIDSet();
+	CID(this,"observation");
 }
 
 // ### observationStack
@@ -169,17 +196,21 @@ assign(Observation.prototype,{
 		return max + 1;
 	},
 	addEdge: function(objEv){
-		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
 		if(objEv.obj.observation) {
 			this.childDepths[objEv.obj._cid] = objEv.obj.observation.getDepth();
 			this.depth = null;
+			objEv.obj.observation.parentObservations.add(this);
+		} else {
+			objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
 		}
 	},
 	removeEdge: function(objEv){
-		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
 		if(objEv.obj.observation) {
 			delete this.childDepths[objEv.obj._cid];
 			this.depth = null;
+			objEv.obj.observation.parentObservations["delete"](this);
+		} else {
+			objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
 		}
 	},
 	dependencyChange: function(ev){
@@ -195,6 +226,7 @@ assign(Observation.prototype,{
 		this.dependencyChange(ev, newVal, oldVal);
 	},
 	update: function(batchNum){
+		this.batchNum = batchNum;
 		if(this.needsUpdate) {
 			remaining.updates--;
 		}
@@ -204,15 +236,21 @@ assign(Observation.prototype,{
 			this.oldValue = this.value;
 			// Get the new value and register this event handler to any new observables.
 			this.start();
+			//console.log("updated", this.compute._cid, this.value, this.oldValue);
 			return this.oldValue !== this.value;
 		}
 	},
 	notify: function(batchNum){
-		remaining.notifications--;
 		this.needsNotification = false;
 		var oldValue = this.oldValue;
 		this.oldValue = null;
-		this.compute.updater(this.value, oldValue, batchNum);
+		if(oldValue !== this.value) {
+			this.parentObservations.forEach(function(observation){
+				observation.onDependencyChange({batchNum: batchNum});
+			});
+			this.compute.updater(this.value, oldValue, batchNum);
+		}
+
 	},
 	getValueAndBind: function() {
 		console.warn("can-observation: call start instead of getValueAndBind");

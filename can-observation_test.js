@@ -363,7 +363,7 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 
 	var sideCompute = simpleCompute(function(){
 		return sideObservable.get();
-	});
+	},"sideCompute");
 
 	var childCompute = simpleCompute(function(){
 		return "c-"+rootA.get();
@@ -372,7 +372,7 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 
 	var grandChildCompute = simpleCompute(function(){
 		return "gc-"+childCompute();
-	});
+	},"grandChildCompute");
 	grandChildCompute.addEventListener("change", function(ev, newValue){
 		QUnit.equal(newValue, "gc-c-B", "one change event");
 	});
