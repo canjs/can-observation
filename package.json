@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "can-util": "^3.0.0-pre.56",
-    "can-event": "^3.0.0-pre.15"
+    "can-event": "^3.0.0-pre.16"
   },
   "devDependencies": {
     "bit-docs": "0.0.6",
@@ -60,6 +60,7 @@
     "generator-donejs": "^0.9.0",
     "jshint": "^2.9.1",
     "steal": "^0.16.0",
+    "steal-benchmark": "0.0.1",
     "steal-qunit": "^0.1.1",
     "steal-tools": "^0.16.0",
     "testee": "^0.2.4"

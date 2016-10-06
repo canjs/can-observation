@@ -17,7 +17,7 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
-
+var remaining = {updates: 0, notifications: 0};
 /**
  * @module {constructor} can-observation
  * @parent can-infrastructure
@@ -97,10 +97,8 @@ function Observation(func, context, compute){
 	this.context = context;
 	this.compute = compute.updater ? compute : {updater: compute};
 	this.onDependencyChange = this.onDependencyChange.bind(this);
-	this.depth = null;
 	this.childDepths = {};
 	this.ignore = 0;
-	this.inBatch = false;
 	this.needsUpdate= false;
 }
 
@@ -137,10 +135,11 @@ assign(Observation.prototype,{
 			// we've already got a value.  However, it might be possible that
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
-			// the outer compute a value, we've had a change to update.
-			if(this.needsUpdate) {
-				Observation.update(this);
+			// the outer compute a value, we've had a change to update.;
+			if(remaining.updates) {
+				Observation.updateChildrenAndSelf(this);
 			}
+
 
 			return this.value;
 		} else {
@@ -150,34 +149,15 @@ assign(Observation.prototype,{
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
-	getDepth: function(){
-		if(this.depth !== null) {
-			return this.depth;
-		} else {
-			return (this.depth = this._getDepth());
-		}
-	},
-	_getDepth: function(){
-		var max = 0,
-			childDepths = this.childDepths;
-		for(var cid in childDepths) {
-			if(childDepths[cid] > max) {
-				max = childDepths[cid];
-			}
-		}
-		return max + 1;
-	},
 	addEdge: function(objEv){
 		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
 		if(objEv.obj.observation) {
-			this.childDepths[objEv.obj._cid] = objEv.obj.observation.getDepth();
 			this.depth = null;
 		}
 	},
 	removeEdge: function(objEv){
 		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
 		if(objEv.obj.observation) {
-			delete this.childDepths[objEv.obj._cid];
 			this.depth = null;
 		}
 	},
@@ -194,18 +174,21 @@ assign(Observation.prototype,{
 		this.dependencyChange(ev, newVal, oldVal);
 	},
 	update: function(batchNum){
+		if(this.needsUpdate) {
+			remaining.updates--;
+		}
 		this.needsUpdate = false;
 		if(this.bound) {
 			// Keep the old value.
-			this.oldValue = this.value;
+			var oldValue = this.value;
+			this.oldValue = null;
 			// Get the new value and register this event handler to any new observables.
 			this.start();
+			if(oldValue !== this.value) {
+				this.compute.updater(this.value, oldValue, batchNum);
+				return true;
+			}
 		}
-	},
-	notify: function(batchNum){
-		var oldValue = this.oldValue;
-		this.oldValue = null;
-		this.compute.updater(this.value, oldValue, batchNum);
 	},
 	getValueAndBind: function() {
 		console.warn("can-observation: call start instead of getValueAndBind");
@@ -309,21 +292,7 @@ assign(Observation.prototype,{
  * @option {String} event The event, or more likely property, that is being observed.
  */
 
-// An array of arrays of observations that need to be updated.
-// The primary sorting is with primaryDepth.  The secondary sorting is depth.
-// [
-//    {
-//      primaryDepth: 0,
-//      current: 0,
-//      max: 19,
-//      observations: [[depth0Observation, depth0Observation], [depth1Observation], [depth19Observation]]
-//    },
-//    {
-//      primaryDepth: 1,
-//      observations: [[depth0Observation, depth0Observation], [depth1Observation], [depth19Observation]]
-//    }
-// ]
-//
+
 var updateOrder = [],
 	// the min registered primary depth, this is also the next to be executed.
 	curPrimaryDepth = Infinity,
@@ -333,31 +302,37 @@ var updateOrder = [],
 	isUpdating = false;
 
 
-// could get a registerUpdate from a 5 while a 1 is going on
-// because the 5 listens to the 1
-Observation.registerUpdate = function(observation, batchNum){
-	// mark as needing an update
-	observation.needsUpdate = true;
-
-	var depth = observation.getDepth()-1;
+var updateUpdateOrder = function(observation){
 	var primaryDepth = observation.getPrimaryDepth();
 
-	curPrimaryDepth = Math.min(primaryDepth, curPrimaryDepth);
-	maxPrimaryDepth = Math.max(primaryDepth, maxPrimaryDepth);
+	if(primaryDepth < curPrimaryDepth) {
+		curPrimaryDepth = primaryDepth;
+	}
+	if(primaryDepth > maxPrimaryDepth) {
+		maxPrimaryDepth = primaryDepth;
+	}
 
 	var primary = updateOrder[primaryDepth] ||
-		(updateOrder[primaryDepth] = {
-			observations: [],
-			current: Infinity,
-			max: 0
-		});
-	var objs = primary.observations[depth] || (primary.observations[depth] = {updates: [], notifications: []});
+		(updateOrder[primaryDepth] = []);
 
-	objs.updates.push(observation);
 
-	primary.current = Math.min(depth, primary.current);
-	primary.max = Math.max(depth, primary.max);
+	return primary;
 };
+
+Observation.registerUpdate = function(observation, batchNum){
+	// mark as needing an update
+	if( observation.needsUpdate ) {
+		return;
+	}
+	remaining.updates++;
+	observation.needsUpdate = true;
+
+	var objs = updateUpdateOrder(observation);
+
+	objs.push(observation);
+};
+
+
 
 // This picks the observation with the smallest "depth" and
 // calls update on it (`currentObservation`).
@@ -382,27 +357,9 @@ Observation.updateAndNotify = function(ev, batchNum){
 	while(true) {
 		if( curPrimaryDepth <= maxPrimaryDepth ) {
 			var primary = updateOrder[curPrimaryDepth];
-
-			if(primary && primary.current <= primary.max) {
-				var last = primary.observations[primary.current];
-				if(last) {
-					var lastUpdate = last.updates.pop();
-					if(lastUpdate) {
-						last.notifications.push(lastUpdate);
-						lastUpdate.update(currentBatchNum);
-					} else {
-						var lastNotify = last.notifications.pop();
-						if(lastNotify) {
-							//CURRENT_UPDATE_PRIMARY = primary;
-							lastNotify.notify(currentBatchNum);
-						} else {
-							primary.current++;
-						}
-					}
-
-				} else {
-					primary.current++;
-				}
+			var lastUpdate = primary && primary.pop();
+			if(lastUpdate) {
+				lastUpdate.update(currentBatchNum);
 			} else {
 				curPrimaryDepth++;
 			}
@@ -411,7 +368,7 @@ Observation.updateAndNotify = function(ev, batchNum){
 			curPrimaryDepth = Infinity;
 			maxPrimaryDepth = 0;
 			isUpdating = false;
-			var afterCB = afterCallbacks.slice(0);
+			var afterCB = afterCallbacks;
 			afterCallbacks = [];
 			afterCB.forEach(function(cb){
 				cb();
@@ -420,6 +377,7 @@ Observation.updateAndNotify = function(ev, batchNum){
 		}
 	}
 };
+canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
 
 Observation.afterUpdateAndNotify = function(callback){
 	canBatch.after(function(){
@@ -433,30 +391,44 @@ Observation.afterUpdateAndNotify = function(callback){
 		}
 	});
 };
-canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
 
 
-
+// This is going to recursively check if there's any child compute
+// that .needsUpdate.
+// If there is, we'll update every parent on the way to ourselves.
+Observation.updateChildrenAndSelf = function(observation){
+	// check if there's children that .needsUpdate
+	if(observation.needsUpdate) {
+		return Observation.unregisterAndUpdate(observation);
+	}
+	var childHasChanged;
+	for(var prop in observation.newObserved) {
+		if(observation.newObserved[prop].obj.observation) {
+			if( Observation.updateChildrenAndSelf(observation.newObserved[prop].obj.observation) ) {
+				childHasChanged = true;
+			}
+		}
+	}
+	if(childHasChanged) {
+		return observation.update(currentBatchNum);
+	}
+};
 // the problem with updateTo(observation)
 // is that that the read might never change
 // but the reader might be changing, and wont update itself, but something
 // else will
-Observation.update = function(observation){
+Observation.unregisterAndUpdate = function(observation){
 	var primaryDepth = observation.getPrimaryDepth();
-	var depth = observation.getDepth() - 1;
 	var primary = updateOrder[primaryDepth];
 	if(primary) {
-		var observations = primary.observations[depth];
-		if(observations) {
-			var updates = observations.updates;
-			var index = updates.indexOf(observation);
-			if(index !== -1) {
-				updates.splice(index,1);
-				observation.update(currentBatchNum);
-				observations.notifications.push(observation);
-			}
+
+		var index = primary.indexOf(observation);
+		if(index !== -1) {
+			primary.splice(index,1);
 		}
+
 	}
+	return observation.update(currentBatchNum);
 };
 
 

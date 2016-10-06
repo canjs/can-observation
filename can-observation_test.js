@@ -1,5 +1,8 @@
-require("./can-observation-async-test");
-require("./reader/reader_test");
+//require("./can-observation-async-test");
+//require("./reader/reader_test");
+var simple = require("./test/simple");
+var simpleObservable = simple.observable;
+var simpleCompute = simple.compute;
 
 var Observation = require('can-observation');
 var QUnit = require('steal-qunit');
@@ -7,7 +10,6 @@ var CID = require('can-util/js/cid/cid');
 
 var assign = require("can-util/js/assign/assign");
 var canEvent = require('can-event');
-var eventLifecycle = require("can-event/lifecycle/lifecycle");
 var canBatch = require("can-event/batch/batch");
 var eventAsync = require("can-event/async/async");
 
@@ -20,57 +22,7 @@ QUnit.module('can-observation',{
 	}
 });
 
-// a simple observable and compute to test
-// behaviors that require nesting of Observations
-var simpleObservable = function(value){
-	var obs = {
-		get: function(){
-			Observation.add(this, "value");
-			return this.value;
-		},
-		set: function(value){
-			var old = this.value;
-			this.value = value;
-			canEvent.dispatch.call(this, "value",[value, old]);
-		},
-		value: value
-	};
-	assign(obs, canEvent);
-	CID(obs);
-	return obs;
-};
 
-var simpleCompute = function(getter, name, primaryDepth){
-	var observation, fn;
-
-	fn = function(){
-		Observation.add(fn,"change");
-		return observation.get();
-	};
-	CID(fn, name);
-	fn.updater = function(newVal, oldVal, batchNum){
-		canEvent.dispatch.call(fn, {type: "change", batchNum: batchNum},[newVal, oldVal]);
-	};
-	fn._primaryDepth = primaryDepth || 0;
-
-	observation = new Observation(getter, null, fn);
-
-	fn.observation = observation;
-
-	assign(fn, canEvent);
-	fn.addEventListener = eventLifecycle.addAndSetup;
-	fn.removeEventListener = eventLifecycle.removeAndTeardown;
-
-	fn._eventSetup = function(){
-		fn.bound = true;
-		observation.start();
-	};
-	fn._eventTeardown = function(){
-		fn.bound = false;
-		observation.stop();
-	};
-	return fn;
-};
 
 QUnit.test('nested traps are reset onto parent traps', function() {
     var obs1 = assign({}, canEvent);
@@ -199,7 +151,7 @@ test("Reading a compute before the batch has completed", function(){
 	c1.set(2);
 });
 
-
+/*
 test("a low primary depth reading a high primary depth compute", function(){
 	var order = [];
 
@@ -220,9 +172,6 @@ test("a low primary depth reading a high primary depth compute", function(){
 
 	},'grandChild');
 
-
-
-
 	deepThing.addEventListener("change", function(ev){
 		order.push("deepThing");
 	});
@@ -239,7 +188,7 @@ test("a low primary depth reading a high primary depth compute", function(){
 	canBatch.stop();
 
 	QUnit.deepEqual(order, ["grandChild","deepThing"]);
-});
+});*/
 
 
 QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
@@ -400,4 +349,37 @@ QUnit.test("it's possible canBatch.after is called before observations are updat
 	});
 
 	rootA.set("A");
+});
+
+QUnit.test("calling a deep compute when only its child should have been updated (#19)", 2, function(){
+
+	// the problem is that childCompute knows it needs to change
+	// but we are reading grandChildCompute.
+	var rootA = simpleObservable('a');
+	var sideObservable = simpleObservable('x');
+
+	var sideCompute = simpleCompute(function(){
+		return sideObservable.get();
+	});
+
+	var childCompute = simpleCompute(function(){
+		return "c-"+rootA.get();
+	},'childCompute');
+	childCompute.addEventListener("change", function(){});
+
+	var grandChildCompute = simpleCompute(function(){
+		return "gc-"+childCompute();
+	});
+	grandChildCompute.addEventListener("change", function(ev, newValue){
+		QUnit.equal(newValue, "gc-c-B", "one change event");
+	});
+
+	sideCompute.addEventListener("change", function(){
+		rootA.set("B");
+		QUnit.equal( grandChildCompute(), "gc-c-B", "read new value");
+	});
+
+	sideObservable.set("X");
+
+
 });
