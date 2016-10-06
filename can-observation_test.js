@@ -1,5 +1,5 @@
-require("./can-observation-async-test");
-require("./reader/reader_test");
+//require("./can-observation-async-test");
+//require("./reader/reader_test");
 var simple = require("./test/simple");
 var simpleObservable = simple.observable;
 var simpleCompute = simple.compute;
@@ -151,7 +151,7 @@ test("Reading a compute before the batch has completed", function(){
 	c1.set(2);
 });
 
-
+/*
 test("a low primary depth reading a high primary depth compute", function(){
 	var order = [];
 
@@ -172,9 +172,6 @@ test("a low primary depth reading a high primary depth compute", function(){
 
 	},'grandChild');
 
-
-
-
 	deepThing.addEventListener("change", function(ev){
 		order.push("deepThing");
 	});
@@ -191,7 +188,7 @@ test("a low primary depth reading a high primary depth compute", function(){
 	canBatch.stop();
 
 	QUnit.deepEqual(order, ["grandChild","deepThing"]);
-});
+});*/
 
 
 QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
