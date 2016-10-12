@@ -16,9 +16,6 @@ var eventAsync = require("can-event/async/async");
 QUnit.module('can-observation',{
 	setup: function(){
 		eventAsync.sync();
-	},
-	teardown: function(){
-		eventAsync.async();
 	}
 });
 
