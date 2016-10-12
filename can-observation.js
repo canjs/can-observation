@@ -24,8 +24,9 @@ var remaining = {updates: 0, notifications: 0};
  * @group can-observation.prototype prototype
  * @group can-observation.static static
  * @group can-observation.types types
+ * @package ./package.json
  *
- * Provides a machanism to notify when an observable has been read and a
+ * Provides a mechanism to notify when an observable has been read and a
  * way to observe those reads called within a given function.
  *
  * @signature `new Observation(func, context, compute)`
