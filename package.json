@@ -52,7 +52,7 @@
   "devDependencies": {
     "bit-docs": "0.0.6",
     "can-compute": "^3.0.0-pre.10",
-    "can-define": "^0.8.0",
+    "can-define": "^1.0.0",
     "can-map": "^3.0.0-pre.8",
     "cssify": "^1.0.2",
     "done-serve": "^0.2.4",
