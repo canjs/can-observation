@@ -53,7 +53,7 @@
     "bit-docs": "0.0.6",
     "can-compute": "^3.0.0-pre.10",
     "can-define": "^0.8.0",
-    "can-map": "^3.0.0-pre.8",
+    "can-map": "^3.0.0",
     "cssify": "^1.0.2",
     "done-serve": "^0.2.4",
     "donejs-cli": "^0.9.5",
