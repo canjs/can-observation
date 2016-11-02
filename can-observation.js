@@ -463,7 +463,7 @@ Observation.add = function (obj, event) {
 		if(top.traps) {
 			top.traps.push({obj: obj, event: evStr, name: name});
 		}
-		else if(!top.newObserved[name]) {
+		else {
 			top.newObserved[name] = {
 				obj: obj,
 				event: evStr

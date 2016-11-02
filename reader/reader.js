@@ -182,7 +182,7 @@ observeReader = {
 				return types.isMapLike.apply(this, arguments) || types.isListLike.apply(this, arguments);
 			},
 			read: function(value, prop, index, options, state){
-				var res = value["get" in value ? "get" : "attr"](prop.key);
+				var res = value.get ? value.get(prop.key) : value.attr(prop.key);
 				if(res !== undefined) {
 					return res;
 				} else {
