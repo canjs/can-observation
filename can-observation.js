@@ -17,6 +17,9 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-util/namespace');
+var CIDMap = require("can-util/js/cid-map/cid-map");
+var CIDSet = require("can-util/js/cid-set/cid-set");
+
 var remaining = {updates: 0, notifications: 0};
 /**
  * @module {constructor} can-observation
@@ -92,8 +95,9 @@ var remaining = {updates: 0, notifications: 0};
  */
 
 function Observation(func, context, compute){
-	this.newObserved = {};
+	this.newObserved = new CIDMap();
 	this.oldObserved = null;
+	this.childObservations = new CIDSet();
 	this.func = func;
 	this.context = context;
 	this.compute = compute.updater ? compute : {updater: compute};
@@ -150,16 +154,18 @@ assign(Observation.prototype,{
 	getPrimaryDepth: function() {
 		return this.compute._primaryDepth || 0;
 	},
-	addEdge: function(objEv){
-		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observation) {
+	addEdge: function(obj, event){
+		obj.addEventListener(event, this.onDependencyChange);
+		if(obj.observation) {
 			this.depth = null;
+			this.childObservations.add(obj);
 		}
 	},
-	removeEdge: function(objEv){
-		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observation) {
+	removeEdge: function(obj, event){
+		obj.removeEventListener(event, this.onDependencyChange);
+		if(obj.observation) {
 			this.depth = null;
+			this.childObservations["delete"](obj);
 		}
 	},
 	dependencyChange: function(ev){
@@ -212,9 +218,9 @@ assign(Observation.prototype,{
 	 */
 	start: function(){
 		this.bound = true;
-		this.oldObserved = this.newObserved || {};
+		this.oldObserved = this.newObserved;
 		this.ignore = 0;
-		this.newObserved = {};
+		this.newObserved = new CIDMap();
 
 		// Add this function call's observation to the stack,
 		// runs the function, pops off the observation, and returns it.
@@ -226,27 +232,49 @@ assign(Observation.prototype,{
 	},
 	// ### updateBindings
 	// Unbinds everything in `oldObserved`.
-	updateBindings: function(){
-		var newObserved = this.newObserved,
-			oldObserved = this.oldObserved,
-			name,
-			obEv;
+	altUpdateBindings: function(){
+		var oldObserved = this.oldObserved;
+		for(let [obj, eventSet] of this.newObserved) {
+			let oldEventSet = oldObserved.get(obj);
+			for(let event of eventSet) {
+				if(!oldEventSet || !oldEventSet["delete"](event)) {
+					this.addEdge(obj, event);
+				}
+			}
+		}
+		for(let [obj, eventSet] of oldObserved) {
+			for(let event of eventSet) {
+				this.removeEdge(obj, event);
+			}
+		}
 
-		for (name in newObserved) {
-			obEv = newObserved[name];
-			if(!oldObserved[name]) {
-				this.addEdge(obEv);
-			} else {
-				oldObserved[name] = null;
-			}
-		}
-		for (name in oldObserved) {
-			obEv = oldObserved[name];
-			if(obEv) {
-				this.removeEdge(obEv);
-			}
-		}
+		//this.newObserved.forEach(addEdges, this);
+		//this.oldObserved.forEach(removeEdges, this);
 	},
+	updateBindings: (function(){
+
+		function removeEdge(event) {
+			this.observation.removeEdge(this.obj, event);
+		}
+		function removeEdges(oldEventSet, obj){
+			oldEventSet.forEach(removeEdge, {observation: this, obj: obj});
+		}
+
+		function addEdgeIfNotInOldSet(event) {
+			if(!this.oldEventSet || !this.oldEventSet["delete"](event)) {
+				this.observation.addEdge(this.obj, event);
+			}
+		}
+
+		function addEdges(eventSet, obj){
+			eventSet.forEach(addEdgeIfNotInOldSet, {observation: this, obj: obj, oldEventSet: this.oldObserved.get(obj)});
+		}
+
+		return function(){
+			this.newObserved.forEach(addEdges, this);
+			this.oldObserved.forEach(removeEdges, this);
+		};
+	})(),
 	teardown: function(){
 		console.warn("can-observation: call stop instead of teardown");
 		return this.stop();
@@ -393,7 +421,13 @@ Observation.afterUpdateAndNotify = function(callback){
 	});
 };
 
-
+function updateChildren(eventSet, obj) {
+	if(obj.observation) {
+		if( Observation.updateChildrenAndSelf(obj.observation) ) {
+			this.childHasChanged = true;
+		}
+	}
+}
 // This is going to recursively check if there's any child compute
 // that .needsUpdate.
 // If there is, we'll update every parent on the way to ourselves.
@@ -402,15 +436,17 @@ Observation.updateChildrenAndSelf = function(observation){
 	if(observation.needsUpdate) {
 		return Observation.unregisterAndUpdate(observation);
 	}
-	var childHasChanged;
-	for(var prop in observation.newObserved) {
-		if(observation.newObserved[prop].obj.observation) {
-			if( Observation.updateChildrenAndSelf(observation.newObserved[prop].obj.observation) ) {
+	/*var childHasChanged;
+	for(var obj of observation.childObservations) {
+		if(obj.observation) {
+			if( Observation.updateChildrenAndSelf(obj.observation) ) {
 				childHasChanged = true;
 			}
 		}
-	}
-	if(childHasChanged) {
+	}*/
+	var state = {childHasChanged: false};
+	observation.newObserved.forEach(updateChildren,state);
+	if(state.childHasChanged) {
 		return observation.update(currentBatchNum);
 	}
 };
@@ -457,17 +493,17 @@ Observation.unregisterAndUpdate = function(observation){
 Observation.add = function (obj, event) {
 	var top = observationStack[observationStack.length-1];
 	if (top && !top.ignore) {
-		var evStr = event + "",
-			name = obj._cid + '|' + evStr;
 
 		if(top.traps) {
-			top.traps.push({obj: obj, event: evStr, name: name});
+			top.traps.push([obj, event]);
 		}
 		else {
-			top.newObserved[name] = {
-				obj: obj,
-				event: evStr
-			};
+			var eventSet = top.newObserved.get(obj);
+			if(!eventSet) {
+				eventSet = new CIDSet();
+				top.newObserved.set(obj, eventSet);
+			}
+			eventSet.add(event);
 		}
 	}
 };
@@ -501,11 +537,15 @@ Observation.addAll = function(observes){
 		} else {
 			for(var i =0, len = observes.length; i < len; i++) {
 				var trap = observes[i],
-					name = trap.name;
+					obj = trap[0],
+					event = trap[1];
 
-				if(!top.newObserved[name]) {
-					top.newObserved[name] = trap;
+				var eventSet = top.newObserved.get(obj);
+				if(!eventSet) {
+					eventSet = new CIDSet();
+					top.newObserved.set(obj, eventSet);
 				}
+				eventSet.add(event);
 			}
 		}
 
