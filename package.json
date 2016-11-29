@@ -24,16 +24,6 @@
     "develop": "done-serve --static --develop --port 8080"
   },
   "main": "can-observation",
-  "browser": {
-    "transform": [
-      "cssify"
-    ]
-  },
-  "browserify": {
-    "transform": [
-      "cssify"
-    ]
-  },
   "keywords": [
     "canjs",
     "canjs-plugin",
@@ -54,7 +44,6 @@
     "can-compute": "^3.0.0-pre.10",
     "can-define": "^1.0.1",
     "can-map": "^3.0.0-pre.8",
-    "cssify": "^1.0.2",
     "done-serve": "^0.2.4",
     "donejs-cli": "^0.9.5",
     "generator-donejs": "^0.9.0",
