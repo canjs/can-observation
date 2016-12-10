@@ -91,10 +91,10 @@ suite.add("reading observable",
 
 		},
 		onStart: function(){
-			//console.profile("init")
+			console.profile("reading");
 		},
 		onComplete: function(){
-			//console.profileEnd("init")
+			console.profileEnd("reading");
 		},
 		onError: function(error){
 			setTimeout(function(){

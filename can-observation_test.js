@@ -43,8 +43,9 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 		var observes1 = getObserves1();
 
 		equal(observes1.length, 2, "two items");
-		equal(observes1[0].obj, obs1);
-		equal(observes1[1].obj, obs2);
+		
+		equal(observes1[0][0], obs1);
+		equal(observes1[1][0], obs2);
 	}, null, function() {
 
 	});
