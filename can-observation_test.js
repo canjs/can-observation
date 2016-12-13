@@ -6,12 +6,13 @@ var simpleCompute = simple.compute;
 
 var Observation = require('can-observation');
 var QUnit = require('steal-qunit');
-var CID = require('can-util/js/cid/cid');
+var CID = require('can-cid');
 
 var assign = require("can-util/js/assign/assign");
 var canEvent = require('can-event');
 var canBatch = require("can-event/batch/batch");
 var eventAsync = require("can-event/async/async");
+var clone = require("steal-clone");
 
 QUnit.module('can-observation',{
 	setup: function(){
@@ -379,4 +380,22 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 	sideObservable.set("X");
 
 
+});
+
+QUnit.test('should throw if can-namespace.Observation is already defined', function() {
+	stop();
+	clone({
+		'can-namespace': {
+			Observation: {}
+		}
+	})
+	.import('can-observation')
+	.then(function() {
+		ok(false, 'should throw');
+		start();
+	})
+	.catch(function(err) {
+		ok(err && err.indexOf('can-observation') >= 0, 'should throw an error about can-observation');
+		start();
+	});
 });
