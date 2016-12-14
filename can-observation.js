@@ -16,7 +16,7 @@ require('can-event');
 var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
-var namespace = require('can-util/namespace');
+var namespace = require('can-namespace');
 var remaining = {updates: 0, notifications: 0};
 /**
  * @module {constructor} can-observation
@@ -618,6 +618,8 @@ Observation.isRecording = function(){
 	return last && (last.ignore === 0) && last;
 };
 
-
-
-module.exports = namespace.Observation = Observation;
+if (namespace.Observation) {
+	throw new Error("You can't have two versions of can-observation, check your dependencies");
+} else {
+	module.exports = namespace.Observation = Observation;
+}
