@@ -36,7 +36,7 @@
     "npmAlgorithm": "flat"
   },
   "dependencies": {
-    "can-cid": "^0.1.0",
+    "can-cid": "^1.0.0",
     "can-event": "^3.0.1",
     "can-namespace": "1.0.0",
     "can-types": "^0.1.0",
