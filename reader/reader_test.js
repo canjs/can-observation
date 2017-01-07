@@ -20,7 +20,7 @@ QUnit.module('can-observation/reader',{
 
 
 
-test("can.Compute.read can read a promise (#179)", function(){
+QUnit.test("can.Compute.read can read a promise (#179)", function(){
 	var data = {
 		promise: new Promise(function(resolve){
 			setTimeout(function(){
@@ -46,7 +46,7 @@ test("can.Compute.read can read a promise (#179)", function(){
 
 });
 
-test('can.compute.reads', function(){
+QUnit.test('can.compute.reads', function(){
 	deepEqual( observeReader.reads("@foo"),
 		[{key: "foo", at: true}]);
 
@@ -61,7 +61,7 @@ test('can.compute.reads', function(){
 
 });
 
-test('able to read things like can-define', 3, function(){
+QUnit.test('able to read things like can-define', function(){
 	var obj = assign({}, canEvent);
 	var prop = "PROP";
 	Object.defineProperty(obj, "prop",{
@@ -93,11 +93,9 @@ test('able to read things like can-define', 3, function(){
 		}
 	});
 	c.start();
-
-
 });
 
-test("foundObservable called with observable object (#7)", function(){
+QUnit.test("foundObservable called with observable object (#7)", function(){
 	var map = {
 		isSaving: function(){
 			Observation.add(this, "_saving");
@@ -116,14 +114,14 @@ test("foundObservable called with observable object (#7)", function(){
 
 });
 
-test("can read from strings", function(){
+QUnit.test("can read from strings", function(){
 	var context = " hi there ";
 
 	var result =  observeReader.read(context,observeReader.reads("trim"),{});
-	QUnit.ok(result, context.trim);
+	QUnit.ok(result, context.trim());
 });
 
-test("read / write to DefineMap", function(){
+QUnit.test("read / write to DefineMap", function(){
 	var map = new DefineMap();
 	var c = new Observation(function(){
 		var data = observeReader.read(map,observeReader.reads("value"),{
@@ -139,7 +137,7 @@ test("read / write to DefineMap", function(){
 	observeReader.write(map,"value",1);
 });
 
-test("read from DefineList", function(){
+QUnit.test("read from DefineList", function(){
 	var list = new DefineList();
 	var c = new Observation(function(){
 		return observeReader.get(list,"value",{
@@ -154,7 +152,7 @@ test("read from DefineList", function(){
 	observeReader.set(list,"value",1);
 });
 
-test("write deep in DefineMap", function(){
+QUnit.test("write deep in DefineMap", function(){
 	var map = new DefineMap();
 	observeReader.write(map,"foo", new DefineMap());
 	observeReader.write(map,"foo.bar", 1);
@@ -162,7 +160,7 @@ test("write deep in DefineMap", function(){
 	QUnit.equal(map.foo.bar, 1, "value set");
 });
 
-test("write to compute in object", function(){
+QUnit.test("write to compute in object", function(){
 	var obj = {compute: compute(2)};
 
 	observeReader.write(obj,"compute", 3);
@@ -170,7 +168,7 @@ test("write to compute in object", function(){
 	QUnit.equal(obj.compute(), 3, "value set");
 });
 
-test("write to a map in a compute", function(){
+QUnit.test("write to a map in a compute", function(){
 	var map = new DefineMap({complete: true});
 	var computeObject = compute(map);
 	observeReader.write(computeObject, "complete", false);
