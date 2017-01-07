@@ -30,9 +30,6 @@
     "donejs"
   ],
   "system": {
-    "configDependencies": [
-      "live-reload"
-    ],
     "npmAlgorithm": "flat"
   },
   "dependencies": {
