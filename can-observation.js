@@ -1,3 +1,4 @@
+/*jshint -W003 */
 // # can-observation - nice
 //
 // This module:
@@ -90,7 +91,6 @@ var remaining = {updates: 0, notifications: 0};
  * me.name = "Ramiya"; // console.logs -> "Hello Ramiya"
  * ```
  */
-
 function Observation(func, context, compute){
 	this.newObserved = {};
 	this.oldObserved = null;
@@ -102,10 +102,13 @@ function Observation(func, context, compute){
 	this.ignore = 0;
 	this.needsUpdate= false;
 	if (!func) {
-		this.start = function(){
-			this.value = {}; // always set a unique value, so there is always an update
-		};
+		this.start = assignUniqueValue;
 	}
+}
+
+
+function assignUniqueValue() {
+ this.value = {};
 }
 
 // ### observationStack
@@ -283,7 +286,7 @@ assign(Observation.prototype,{
 	 * Starts observing all observables in general until `.popFromStack()` is called.
 	 *
 	 */
-	pushToStack() {
+	pushToStack: function() {
 		this.bound = true;
 		this.oldObserved = this.newObserved || {};
 		this.ignore = 0;
@@ -291,7 +294,7 @@ assign(Observation.prototype,{
 		// Add this function call's observation to the stack
 		observationStack.push(this);
 	},
-	popFromStack() {
+	popFromStack: function() {
 		// pops off the observation, and returns it.
 		observationStack.pop();
 		this.updateBindings();
