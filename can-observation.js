@@ -101,6 +101,11 @@ function Observation(func, context, compute){
 	this.childDepths = {};
 	this.ignore = 0;
 	this.needsUpdate= false;
+	if (!func) {
+		this.start = function(){
+			this.value = {}; // always set a unique value, so there is always an update
+		};
+	}
 }
 
 // ### observationStack
@@ -268,6 +273,28 @@ assign(Observation.prototype,{
 			this.removeEdge(ob);
 		}
 		this.newObserved = {};
+	},
+	/**
+	 * @function can-observation.prototype.pushToStack pushToStack
+	 * @parent can-observation.prototype prototype
+	 *
+	 * @signature `observation.pushToStack()`
+	 *
+	 * Starts observing all observables in general until `.popFromStack()` is called.
+	 *
+	 */
+	pushToStack() {
+		this.bound = true;
+		this.oldObserved = this.newObserved || {};
+		this.ignore = 0;
+		this.newObserved = {};
+		// Add this function call's observation to the stack
+		observationStack.push(this);
+	},
+	popFromStack() {
+		// pops off the observation, and returns it.
+		observationStack.pop();
+		this.updateBindings();
 	}
 	/**
 	 * @property {*} can-observation.prototype.value
