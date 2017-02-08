@@ -398,7 +398,7 @@ QUnit.test('should throw if can-namespace.Observation is already defined', funct
 		start();
 	})
 	.catch(function(err) {
-		ok(err && err.indexOf('can-observation') >= 0, 'should throw an error about can-observation');
+		ok(err && err.message.indexOf('can-observation') >= 0, 'should throw an error about can-observation');
 		start();
 	});
 });
