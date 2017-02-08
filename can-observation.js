@@ -17,7 +17,6 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-namespace');
-var remaining = {updates: 0, notifications: 0};
 /**
  * @module {constructor} can-observation
  * @parent can-infrastructure
@@ -125,6 +124,12 @@ function Observation(func, context, compute){
 //   We use keys like `"cid|event"` to quickly identify if we have already observed this observable.
 // - `names` is all the keys so we can quickly tell if two observation objects are the same.
 var observationStack = [];
+// expose the obseravation stack
+Observation.observationStack = observationStack;
+
+var remaining = {updates: 0, notifications: 0};
+// expose the remaining state
+Observation.remaining = remaining;
 
 assign(Observation.prototype,{
 	// something is reading the value of this compute

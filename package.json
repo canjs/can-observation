@@ -1,6 +1,6 @@
 {
   "name": "can-observation",
-  "version": "3.0.4",
+  "version": "3.0.7",
   "description": "Core observable indicators",
   "homepage": "http://canjs.com",
   "author": {
@@ -36,11 +36,11 @@
     "npmAlgorithm": "flat"
   },
   "dependencies": {
-    "can-cid": "^0.1.0",
+    "can-cid": "^1.0.0",
     "can-event": "^3.0.1",
     "can-namespace": "1.0.0",
-    "can-types": "^0.1.0",
-    "can-util": "^3.0.1"
+    "can-types": "^1.0.1",
+    "can-util": "^3.2.2"
   },
   "devDependencies": {
     "bit-docs": "^0.0.7",
@@ -51,10 +51,10 @@
     "donejs-cli": "^0.9.5",
     "generator-donejs": "^0.9.0",
     "jshint": "^2.9.1",
-    "steal": "^0.16.0",
+    "steal": "^1.2.3",
     "steal-benchmark": "0.0.1",
-    "steal-qunit": "^0.1.1",
-    "steal-tools": "^1.0.1",
+    "steal-qunit": "^1.0.1",
+    "steal-tools": "^1.1.2",
     "testee": "^0.3.0"
   },
   "repository": {
