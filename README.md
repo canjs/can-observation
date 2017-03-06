@@ -33,7 +33,7 @@ The different operators you can use are grouped by operation type as follows:
 - Getter / Setter Operators - get or set some value on another value.
   - `.getKeyValue`, `.setKeyValue` - for maps
   - `.getValue`, `.setValue` - for things like computes
-  - `.splice`, `.addKeys(keyValues[,index])`, `.removeKeys(keys[,index])` (PENDING?)
+  - `.splice`, `.addKeys(keyValues[,index])`, `.removeKeys(keysOrValues[,index])` (PENDING?)
 - Function Operators - call functions or create instances
   - `.call`
   - `.apply`
