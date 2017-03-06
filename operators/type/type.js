@@ -28,7 +28,7 @@ function isConstructorLike(func){
 }
 
 function isFunctionLike(obj){
-	var result = check(["can.new","can.apply","can.call"], obj);
+	var result = check(["can.new","can.call"], obj);
 	if(result !== undefined) {
 		return !!result;
 	}

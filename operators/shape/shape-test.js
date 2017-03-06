@@ -143,6 +143,18 @@ QUnit.test("eachKey", function(){
 	});*/
 });
 
+QUnit.test("each", function(){
+	shapeOperators.each({foo: "bar"}, function(value, key){
+		QUnit.equal(key, "foo");
+		QUnit.equal(value, "bar");
+	});
+
+	shapeOperators.each(["bar"], function(value, index){
+		QUnit.equal(index, 0);
+		QUnit.equal(value, "bar");
+	});
+});
+
 QUnit.test("toArray", function(){
 	if(typeof document !== "undefined") {
 		var ul = document.createElement("ul");
@@ -189,10 +201,22 @@ QUnit.test("getOwnKeys", function(){
 });
 
 QUnit.test("getOwnKeyDescriptor", function(){
+	var obj = {foo: "bar"};
 
+	QUnit.deepEqual(
+		shapeOperators.getOwnKeyDescriptor(obj,"foo"),
+		Object.getOwnPropertyDescriptor(obj, "foo") , "POJO" );
+
+	var obj2 = {};
+	getSetOperators.setKeyValue(obj2,canSymbol.for("can.getOwnKeyDescriptor"),function(key){
+		return ({foo:{enumerable: true, type: "thing"}})[key];
+	});
+	QUnit.deepEqual(
+		shapeOperators.getOwnKeyDescriptor(obj2,"foo"),
+		{enumerable: true, type: "thing"}, "w/ symbol" );
 });
 
-QUnit.module('can-operate: shape operators: proto chain');
+/*QUnit.module('can-operate: shape operators: proto chain');
 
 QUnit.test("in", function(){
 
@@ -204,4 +228,4 @@ QUnit.test("getAllEnumerableKeys", function(){
 
 QUnit.test("getAllKeys", function(){
 
-});
+});*/

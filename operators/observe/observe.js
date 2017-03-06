@@ -1,17 +1,67 @@
+var canSymbol = require("can-symbol");
+
+var slice = [].slice;
+
+function makeFallback(symbolName, fallbackName) {
+	return function(obj){
+		var method = obj[canSymbol.for(symbolName)];
+		if(method !== undefined) {
+			return method.apply(obj, slice.call(arguments, 1));
+		}
+		return this[fallbackName].apply(this, arguments);
+	};
+}
+
+function makeErrorIfMissing(symbolName, errorMessage){
+	return function(obj){
+		var method = obj[canSymbol.for(symbolName)];
+		if(method !== undefined) {
+			return method.apply(obj, slice.call(arguments, 1));
+		}
+		throw new Error(errorMessage);
+	};
+}
+
 module.exports = {
-	getkeyDependencies: function(){},
-	getValueDependencies: function(){},
-
-	onValue: function(){},
-	offValue: function(){},
-
-	onKeyValue: function(){},
-	offKeyValue: function(){},
+	// KEY
+	onKeyValue: makeFallback("can.onKeyValue", "onEvent"),
+	offKeyValue: makeFallback("can.offKeyValue","offEvent"),
 
 	// any key change (diff would normally happen)
-	onKeys: function(){},
+	onKeys: makeErrorIfMissing("can.onKeys","can-operate: can not observe an onKeys event"),
+	// keys added at a certain point {key: 1}, index
+	onKeysAdded: makeErrorIfMissing("can.onKeysAdded","can-operate: can not observe an onKeysAdded event"),
 
-	onKeysAdded: function(){},
+	onKeysRemoved: makeErrorIfMissing("can.onKeysRemoved","can-operate: can not unobserve an onKeysRemoved event"),
 
-	onKeysRemoved: function(){},
+	getKeyDependencies: makeErrorIfMissing("can.getKeyDependencies","can-operate: can get dependencies for key"),
+
+	// VALUE
+	onValue: makeErrorIfMissing("can.onValue","can-operate: can not observe value change"),
+	offValue: makeErrorIfMissing("can.offValue","can-operate: can not unobserve value change"),
+
+	getValueDependencies: makeErrorIfMissing("can.getKeyDependencies","can-operate: can get dependencies for value"),
+
+	// EVENT
+	onEvent: function(obj, eventName, callback){
+		if(obj) {
+			var onEvent = obj[canSymbol.for("can.onEvent")];
+			if(onEvent !== undefined) {
+				return onEvent.apply(obj, slice.call(arguments, 1));
+			} else if(obj.addEventListener) {
+				obj.addEventListener(eventName, callback);
+			}
+		}
+	},
+	offEvent: function(obj, eventName, callback){
+		if(obj) {
+			var offEvent = obj[canSymbol.for("can.offEvent")];
+			if(offEvent !== undefined) {
+				return offEvent.apply(obj, slice.call(arguments, 1));
+			}  else if(obj.removeEventListener) {
+				obj.removeEventListener(eventName, callback);
+			}
+		}
+
+	}
 };
