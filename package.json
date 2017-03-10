@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "bit-docs": "^0.0.7",
-    "can-compute": "^3.0.4",
+    "can-compute": "3.0.6",
     "can-define": "^1.0.1",
     "can-map": "^3.0.3",
     "done-serve": "^0.2.4",
