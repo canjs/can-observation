@@ -17,6 +17,8 @@ var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-namespace');
+var canLog = require('can-util/js/log/log');
+
 /**
  * @module {constructor} can-observation
  * @parent can-infrastructure
@@ -197,7 +199,7 @@ assign(Observation.prototype,{
 		}
 	},
 	getValueAndBind: function() {
-		console.warn("can-observation: call start instead of getValueAndBind");
+		canLog.warn("can-observation: call start instead of getValueAndBind");
 		return this.start();
 	},
 	// ## getValueAndBind
@@ -253,7 +255,7 @@ assign(Observation.prototype,{
 		}
 	},
 	teardown: function(){
-		console.warn("can-observation: call stop instead of teardown");
+		canLog.warn("can-observation: call stop instead of teardown");
 		return this.stop();
 	},
 	/**
