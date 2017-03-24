@@ -1,5 +1,5 @@
-require("./operators/type/type-test");
-require("./operators/shape/shape-test");
-require("./operators/get-set/get-set-test");
-require("./operators/call/call-test");
-require("./operators/observe/observe-test");
+require("./reflections/type/type-test");
+require("./reflections/shape/shape-test");
+require("./reflections/get-set/get-set-test");
+require("./reflections/call/call-test");
+require("./reflections/observe/observe-test");

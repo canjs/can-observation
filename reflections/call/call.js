@@ -1,5 +1,5 @@
 var canSymbol = require("can-symbol");
-var typeOperators = require("../type/type");
+var typeReflections = require("../type/type");
 
 module.exports = {
 	call: function(func, context){
@@ -27,7 +27,7 @@ module.exports = {
 		} else {
 			var context = Object.create(func.prototype);
 			var ret = func.apply(context, args);
-			if(typeOperators.isPrimitive(ret)) {
+			if(typeReflections.isPrimitive(ret)) {
 				return context;
 			} else {
 				return ret;

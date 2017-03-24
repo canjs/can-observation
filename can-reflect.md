@@ -1,5 +1,5 @@
-@page can-operate
+@page can-reflect
 
-# can-operate
+# can-reflect
 
-operate on unknown data types
+reflection on unknown data types

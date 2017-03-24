@@ -1,34 +1,34 @@
 var QUnit = require('steal-qunit');
 var canSymbol = require('can-symbol');
-var observeOperators = require("./observe");
-var getSetOperators = require("../get-set/get-set");
+var observeReflections = require("./observe");
+var getSetReflections = require("../get-set/get-set");
 
-QUnit.module('can-operate: observe operators: key');
+QUnit.module('can-reflect: observe reflections: key');
 
 QUnit.test("onKeyValue / offKeyValue", function(){
 	var obj = {callbacks: {foo: []}};
-	getSetOperators.setKeyValue(obj,canSymbol.for("can.onKeyValue"),function(key, callback){
+	getSetReflections.setKeyValue(obj,canSymbol.for("can.onKeyValue"),function(key, callback){
 		this.callbacks[key].push(callback);
 	});
 
 	var callback = function(ev, value){
 		QUnit.equal(value, "bar");
 	};
-	observeOperators.onKeyValue(obj,"foo", callback);
+	observeReflections.onKeyValue(obj,"foo", callback);
 	obj.callbacks.foo[0]({}, "bar");
 
-	getSetOperators.setKeyValue(obj,canSymbol.for("can.offKeyValue"),function(key, callback){
+	getSetReflections.setKeyValue(obj,canSymbol.for("can.offKeyValue"),function(key, callback){
 		var index = this.callbacks[key].indexOf(callback);
 		this.callbacks[key].splice(index, 1);
 	});
 
-	observeOperators.offKeyValue(obj,"foo", callback);
+	observeReflections.offKeyValue(obj,"foo", callback);
 	QUnit.equal(obj.callbacks.foo.length, 0, "no event handlers");
 });
 
 QUnit.test("onKeys", function(){
 	try{
-		observeOperators.onKeys({}, function(){});
+		observeReflections.onKeys({}, function(){});
 		QUnit.ok(false, "should throw error");
 	} catch(e) {
 		QUnit.ok(true, "threw error");
@@ -38,14 +38,14 @@ QUnit.test("onKeys", function(){
 
 QUnit.test("onKeysAdded / onKeysRemoved", function(){
 	try{
-		observeOperators.onKeysAdded({}, function(){});
+		observeReflections.onKeysAdded({}, function(){});
 		QUnit.ok(false, "should throw error");
 	} catch(e) {
 		QUnit.ok(true, "threw error");
 	}
 
 	try{
-		observeOperators.onKeysRemoved({}, function(){});
+		observeReflections.onKeysRemoved({}, function(){});
 		QUnit.ok(false, "should throw error");
 	} catch(e) {
 		QUnit.ok(true, "threw error");
@@ -54,47 +54,47 @@ QUnit.test("onKeysAdded / onKeysRemoved", function(){
 
 QUnit.test("getKeyDependencies", function(){
 	try{
-		observeOperators.getKeyDependencies({});
+		observeReflections.getKeyDependencies({});
 		QUnit.ok(false, "should throw error");
 	} catch(e) {
 		QUnit.ok(true, "threw error");
 	}
 });
 
-QUnit.module('can-operate: observe operators: value');
+QUnit.module('can-reflect: observe reflections: value');
 
 QUnit.test("onValue / offValue", function(){
 	var obj = {callbacks:[]};
-	getSetOperators.setKeyValue(obj,canSymbol.for("can.onValue"),function(callback){
+	getSetReflections.setKeyValue(obj,canSymbol.for("can.onValue"),function(callback){
 		this.callbacks.push(callback);
 	});
 
 	var callback = function(ev, value){
 		QUnit.equal(value, "bar");
 	};
-	observeOperators.onValue(obj, callback);
+	observeReflections.onValue(obj, callback);
 	obj.callbacks[0]({}, "bar");
 
-	getSetOperators.setKeyValue(obj,canSymbol.for("can.offValue"),function(callback){
+	getSetReflections.setKeyValue(obj,canSymbol.for("can.offValue"),function(callback){
 		var index = this.callbacks.indexOf(callback);
 		this.callbacks.splice(index, 1);
 	});
 
-	observeOperators.offValue(obj, callback);
+	observeReflections.offValue(obj, callback);
 	QUnit.equal(obj.callbacks.length, 0, "no event handlers");
 });
 
 
 QUnit.test("getValueDependencies", function(){
 	try{
-		observeOperators.getValueDependencies({});
+		observeReflections.getValueDependencies({});
 		QUnit.ok(false, "should throw error");
 	} catch(e) {
 		QUnit.ok(true, "threw error");
 	}
 });
 
-QUnit.module('can-operate: observe operators: event');
+QUnit.module('can-reflect: observe reflections: event');
 
 QUnit.test("onEvent / offEvent", function(){
 	var cb = function(){};
@@ -112,6 +112,6 @@ QUnit.test("onEvent / offEvent", function(){
 		}
 	};
 
-	observeOperators.onEvent(obj, "click", cb);
-	observeOperators.offEvent(obj, "click", cb);
+	observeReflections.onEvent(obj, "click", cb);
+	observeReflections.offEvent(obj, "click", cb);
 });

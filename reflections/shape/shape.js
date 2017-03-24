@@ -1,12 +1,12 @@
 var canSymbol = require("can-symbol");
-var getSetOperators = require("../get-set/get-set");
-var typeOperators = require("../type/type");
+var getSetReflections = require("../get-set/get-set");
+var typeReflections = require("../type/type");
 
-var shapeOperators = {
+var shapeReflections = {
 	each: function(obj, callback, context){
 
 		// if something is more "list like" .. use eachIndex
-		if(typeOperators.isIteratorLike(obj) || typeOperators.isMoreListLikeThanMapLike(obj) ) {
+		if(typeReflections.isIteratorLike(obj) || typeReflections.isMoreListLikeThanMapLike(obj) ) {
 			return this.eachIndex(obj,callback,context);
 		} else {
 			return this.eachKey(obj,callback,context);
@@ -18,7 +18,7 @@ var shapeOperators = {
 		var iter;
 		if(Array.isArray(list)) {
 			// do nothing
-		} else if(typeOperators.isIteratorLike(list)) {
+		} else if(typeReflections.isIteratorLike(list)) {
 			// we are looping through an interator
 			iter = list;
 		} else {
@@ -56,7 +56,7 @@ var shapeOperators = {
 	eachKey: function(obj, callback, context){
 		var enumerableKeys = this.getOwnEnumerableKeys(obj);
 		return this.eachIndex(enumerableKeys, function(key){
-			var value = getSetOperators.getKeyValue(obj, key);
+			var value = getSetReflections.getKeyValue(obj, key);
 			return callback.call(context || obj, value, key, obj);
 		});
 	},
@@ -141,5 +141,5 @@ var shapeOperators = {
 	getAllEnumerableKeys: function(){},
 	getAllKeys: function(){}
 };
-shapeOperators.keys = shapeOperators.getOwnEnumerableKeys;
-module.exports = shapeOperators;
+shapeReflections.keys = shapeReflections.getOwnEnumerableKeys;
+module.exports = shapeReflections;

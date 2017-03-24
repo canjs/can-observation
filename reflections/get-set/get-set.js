@@ -1,5 +1,5 @@
 var canSymbol = require("can-symbol");
-var typeOperators = require("../type/type");
+var typeReflections = require("../type/type");
 
 module.exports = {
 	setKeyValue: function(obj, key, value){
@@ -7,7 +7,7 @@ module.exports = {
 		if(setKeyValue) {
 			return setKeyValue.call(obj, key, value);
 		}
-		if(typeOperators.isSymbolLike(key) && typeof key !== "symbol") {
+		if(typeReflections.isSymbolLike(key) && typeof key !== "symbol") {
 			Object.defineProperty(obj, key, {
 				enumerable: false,
 				configurable: true,
@@ -27,7 +27,7 @@ module.exports = {
 		return obj[key];
 	},
 	getValue: function(value){
-		if(typeOperators.isPrimitive(value)) {
+		if(typeReflections.isPrimitive(value)) {
 			return value;
 		}
 		var getValue = value[canSymbol.for("can.getValue")];
@@ -41,7 +41,7 @@ module.exports = {
 		if(setValue) {
 			return setValue.call(item, value);
 		} else {
-			throw new Error("can-operate.setValue - Can not set value.");
+			throw new Error("can-reflect.setValue - Can not set value.");
 		}
 	}
 };

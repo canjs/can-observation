@@ -1,8 +1,8 @@
-# Contributing to can-operate
+# Contributing to can-reflect
 
 ## Developing Locally
 
-This section will walk you through setting up the [repository](https://github.com/canjs/can-operate) on your computer.
+This section will walk you through setting up the [repository](https://github.com/canjs/can-reflect) on your computer.
 
 ### Signing up for GitHub
 
@@ -12,14 +12,14 @@ If you don’t already have a GitHub account, you’ll need to [create a new one
 
 A “fork” is a copy of a repository in your personal GitHub account. “Cloning” is the process of getting the repository’s source code on your computer.
 
-GitHub has a guide for [forking a repo](https://help.github.com/articles/fork-a-repo/). To fork can-operate, you can start by going to its [fork page](https://github.com/canjs/can-operate/fork).
+GitHub has a guide for [forking a repo](https://help.github.com/articles/fork-a-repo/). To fork can-reflect, you can start by going to its [fork page](https://github.com/canjs/can-reflect/fork).
 
 Next, you’ll want to clone the repo. [GitHub’s cloning guide](https://help.github.com/articles/cloning-a-repository/) explains how to do this on Linux, Mac, or Windows.
 
 GitHub’s guide will [instruct you](https://help.github.com/articles/fork-a-repo/#step-2-create-a-local-clone-of-your-fork) to clone it with a command like:
 
 ```shell
-git clone https://github.com/YOUR-USERNAME/can-operate
+git clone https://github.com/YOUR-USERNAME/can-reflect
 ```
 
 Make sure you replace `YOUR-USERNAME` with your GitHub username.
@@ -33,7 +33,7 @@ First, make sure you’ve [installed Node.js and npm](https://docs.npmjs.com/get
 If you just cloned the repo from the command line, you’ll want to switch to the folder with your clone:
 
 ```shell
-cd can-operate
+cd can-reflect
 ```
 
 Next, install the project’s dependencies with npm:

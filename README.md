@@ -1,15 +1,15 @@
-# can-operate
+# can-reflect
 
-[![Build Status](https://travis-ci.org/canjs/can-operate.png?branch=master)](https://travis-ci.org/canjs/can-operate)
+[![Build Status](https://travis-ci.org/canjs/can-reflect.png?branch=master)](https://travis-ci.org/canjs/can-reflect)
 
-Operate on unknown data types.
+Reflect allows you to reflection on unknown data types.
 
-By looking for symbols in [can-symbol], `can-operate` lets someone act upon
+By looking for symbols in [can-symbol], `can-reflect` lets someone act upon
 any data type without having to have prior knowledge of it.
 
-The different operators you can use are grouped by operation type as follows:
+The different reflections you can use are grouped by reflection type as follows:
 
-- Type Operators - Tell you what the value is.
+- Type Reflections - Tell you what the value is.
   - `.isConstructorLike `
   - `.isFunctionLike`
   - `.isIteratorLike`
@@ -19,7 +19,7 @@ The different operators you can use are grouped by operation type as follows:
   - `.isObservableLike`
   - `.isValueLike`
   - `.isSymbolLike`
-- Shape Operators - Give you information about the value.
+- Shape Reflections - Give you information about the value.
   - _own and enumerable_
     - `.eachIndex`
 	- `.eachKey`
@@ -30,15 +30,15 @@ The different operators you can use are grouped by operation type as follows:
 	- `.getOwnKeys`
 	- `.getOwnKeyDescriptor`
   - _all_ (pending)
-- Getter / Setter Operators - get or set some value on another value.
-  - `.getKeyValue`, `.setKeyValue` - for maps
+- Getter / Setter Reflections - get or set some value on another value.
+  - `.getKeyValue`, `.setKeyValue`, `.deleteKeyValue` - for maps (`get`, `set`, and `delete` are aliases)
   - `.getValue`, `.setValue` - for things like computes
   - `.splice`, `.addKeys(keyValues[,index])`, `.removeKeys(keysOrValues[,index])` (PENDING?)
-- Function Operators - call functions or create instances
+- Function Reflections - call functions or create instances
   - `.call`
   - `.apply`
   - `.new`
-- Observe Operators - listen to when things change
+- Observe Reflections - listen to when things change
   - `.onKeyValue`, `.offKeyValue`
   - `.onKeys` - when anything changes
   - `.onKeysAdded`, `.onKeysRemoved`

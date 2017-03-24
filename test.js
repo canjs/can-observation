@@ -1,1 +1,1 @@
-import './can-operate-test';
+import './can-reflect-test';

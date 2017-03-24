@@ -28,19 +28,19 @@ module.exports = {
 	offKeyValue: makeFallback("can.offKeyValue","offEvent"),
 
 	// any key change (diff would normally happen)
-	onKeys: makeErrorIfMissing("can.onKeys","can-operate: can not observe an onKeys event"),
+	onKeys: makeErrorIfMissing("can.onKeys","can-reflect: can not observe an onKeys event"),
 	// keys added at a certain point {key: 1}, index
-	onKeysAdded: makeErrorIfMissing("can.onKeysAdded","can-operate: can not observe an onKeysAdded event"),
+	onKeysAdded: makeErrorIfMissing("can.onKeysAdded","can-reflect: can not observe an onKeysAdded event"),
 
-	onKeysRemoved: makeErrorIfMissing("can.onKeysRemoved","can-operate: can not unobserve an onKeysRemoved event"),
+	onKeysRemoved: makeErrorIfMissing("can.onKeysRemoved","can-reflect: can not unobserve an onKeysRemoved event"),
 
-	getKeyDependencies: makeErrorIfMissing("can.getKeyDependencies","can-operate: can get dependencies for key"),
+	getKeyDependencies: makeErrorIfMissing("can.getKeyDependencies","can-reflect: can get dependencies for key"),
 
 	// VALUE
-	onValue: makeErrorIfMissing("can.onValue","can-operate: can not observe value change"),
-	offValue: makeErrorIfMissing("can.offValue","can-operate: can not unobserve value change"),
+	onValue: makeErrorIfMissing("can.onValue","can-reflect: can not observe value change"),
+	offValue: makeErrorIfMissing("can.offValue","can-reflect: can not unobserve value change"),
 
-	getValueDependencies: makeErrorIfMissing("can.getKeyDependencies","can-operate: can get dependencies for value"),
+	getValueDependencies: makeErrorIfMissing("can.getKeyDependencies","can-reflect: can get dependencies for value"),
 
 	// EVENT
 	onEvent: function(obj, eventName, callback){
