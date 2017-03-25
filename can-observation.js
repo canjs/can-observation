@@ -16,8 +16,11 @@ require('can-event');
 var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
+var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
 var namespace = require('can-namespace');
 var canLog = require('can-util/js/log/log');
+var canReflect = require('can-reflect');
+var canSymbol = require('can-symbol');
 
 /**
  * @module {constructor} can-observation
@@ -97,11 +100,11 @@ function Observation(func, context, compute){
 	this.oldObserved = null;
 	this.func = func;
 	this.context = context;
-	this.compute = compute.updater ? compute : {updater: compute};
+	this.compute = compute && compute.updater ? compute : {updater: compute};
 	this.onDependencyChange = this.onDependencyChange.bind(this);
-	this.childDepths = {};
 	this.ignore = 0;
 	this.needsUpdate= false;
+	this.handlers = null;
 }
 
 // ### observationStack
@@ -158,28 +161,30 @@ assign(Observation.prototype,{
 		return this.compute._primaryDepth || 0;
 	},
 	addEdge: function(objEv){
-		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observation) {
-			this.depth = null;
+		if(objEv.event === "undefined") {
+			canReflect.onValue(objEv.obj, this.onDependencyChange);
+		} else {
+			canReflect.onKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
 		}
 	},
 	removeEdge: function(objEv){
-		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observation) {
-			this.depth = null;
+		if(objEv.event === "undefined") {
+			canReflect.offValue(objEv.obj, this.onDependencyChange);
+		} else {
+			canReflect.offKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
 		}
 	},
-	dependencyChange: function(ev){
+	dependencyChange: function(){
 		if(this.bound) {
 			// Only need to register once per batchNum
-			if(ev.batchNum !== this.batchNum) {
-				Observation.registerUpdate(this, ev.batchNum);
-				this.batchNum = ev.batchNum;
+			if(canBatch.batchNum !== this.batchNum) {
+				Observation.registerUpdate(this, canBatch.batchNum);
+				this.batchNum = canBatch.batchNum;
 			}
 		}
 	},
-	onDependencyChange: function(ev, newVal, oldVal){
-		this.dependencyChange(ev, newVal, oldVal);
+	onDependencyChange: function(){
+		this.dependencyChange();
 	},
 	update: function(batchNum){
 		if(this.needsUpdate) {
@@ -624,6 +629,43 @@ Observation.isRecording = function(){
 	var last = len && observationStack[len-1];
 	return last && (last.ignore === 0) && last;
 };
+
+
+// can-reflect bindings ===========
+
+var callHandlers = function(newValue){
+	var handlers = this.handlers.slice(0);
+	for(var i = 0, len = handlers.length; i < len; i++) {
+		handlers[i].apply(this.compute, arguments);
+	}
+};
+
+canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
+	if(!this.handlers) {
+		this.handlers = [];
+		if(this.compute.updater) {
+			console.warn("can-observation bound to with an existing handler");
+		}
+		this.compute.updater = callHandlers.bind(this);
+		this.start();
+	}
+	this.handlers.push(handler);
+});
+
+canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(handler){
+	var index = this.handlers.indexOf(handler);
+	this.handlers.splice(index, 1);
+	if(this.handlers.length === 0) {
+		this.stop();
+	}
+});
+
+canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation.prototype.get);
+
+Observation.prototype.hasDependencies = function(){
+	return !isEmptyObject(this.newObserved);
+};
+canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
 
 if (namespace.Observation) {
 	throw new Error("You can't have two versions of can-observation, check your dependencies");
