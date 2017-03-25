@@ -1,8 +1,8 @@
 var functionReflections = require("./reflections/call/call");
-var getSet = require("./relections/get-set/get-set");
-var observe = require("./relections/observe/observe");
-var shape = require("./relections/shape/shape");
-var type = require("./relections/type/type");
+var getSet = require("./reflections/get-set/get-set");
+var observe = require("./reflections/observe/observe");
+var shape = require("./reflections/shape/shape");
+var type = require("./reflections/type/type");
 
 var reflect = {};
 [functionReflections,getSet,observe,shape,type].forEach(function(reflections){
@@ -10,7 +10,5 @@ var reflect = {};
 		reflect[prop] = reflections[prop];
 	}
 });
-
-
 
 module.exports = reflect;

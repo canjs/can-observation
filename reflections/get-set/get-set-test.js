@@ -19,6 +19,11 @@ QUnit.test("getKeyValue", function(){
 	QUnit.equal( getSetReflections.getKeyValue(obj, "foo"), "bar");
 });
 
+QUnit.test("get / set alias", function(){
+	QUnit.equal(getSetReflections.get, getSetReflections.getKeyValue);
+	QUnit.equal(getSetReflections.set, getSetReflections.setKeyValue);
+});
+
 QUnit.test("setKeyValue", function(){
 	// check symbol set
 	var obj ={};
@@ -44,6 +49,13 @@ QUnit.test("setKeyValue", function(){
 	});
 
 	getSetReflections.setKeyValue( obj, "someProp", "someValue");
+});
+
+QUnit.test("deleteKeyValue", function(){
+	var obj = {prop: "Value"};
+
+	getSetReflections.deleteKeyValue(obj,"prop");
+	QUnit.equal(obj.prop, undefined, "deleted");
 });
 
 QUnit.module('can-reflect: get-set reflections: value');

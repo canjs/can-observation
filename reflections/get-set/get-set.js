@@ -1,7 +1,7 @@
 var canSymbol = require("can-symbol");
 var typeReflections = require("../type/type");
 
-module.exports = {
+var reflections = {
 	setKeyValue: function(obj, key, value){
 		var setKeyValue = obj[canSymbol.for("can.setKeyValue")];
 		if(setKeyValue) {
@@ -26,6 +26,13 @@ module.exports = {
 		}
 		return obj[key];
 	},
+	deleteKeyValue: function(obj, key) {
+		var deleteKeyValue = obj[canSymbol.for("can.deleteKeyValue")];
+		if(deleteKeyValue) {
+			return deleteKeyValue.call(obj, key);
+		}
+		delete obj[key];
+	},
 	getValue: function(value){
 		if(typeReflections.isPrimitive(value)) {
 			return value;
@@ -45,3 +52,8 @@ module.exports = {
 		}
 	}
 };
+reflections.get = reflections.getKeyValue;
+reflections.set = reflections.setKeyValue;
+reflections.delete = reflections.deleteKeyValue;
+
+module.exports = reflections;

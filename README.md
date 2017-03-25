@@ -43,6 +43,14 @@ The different reflections you can use are grouped by reflection type as follows:
   - `.onKeys` - when anything changes
   - `.onKeysAdded`, `.onKeysRemoved`
   - `.getKeyDependencies` - for debugging
+  - `.keyHasDependencies`
   - `.onValue`, `.offValue`
   - `.getValueDependencies`
+  - `.valueHasDependencies`
   - `.onEvent`, `.offEvent` - listen to an event on something
+
+TODO:
+
+ - `.deleteKeyValue`, `.get` and `.set` aliases
+ - `addKeys` / `removeKeys`
+ - `isInitializing`

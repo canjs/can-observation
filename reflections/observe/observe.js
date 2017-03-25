@@ -34,13 +34,19 @@ module.exports = {
 
 	onKeysRemoved: makeErrorIfMissing("can.onKeysRemoved","can-reflect: can not unobserve an onKeysRemoved event"),
 
-	getKeyDependencies: makeErrorIfMissing("can.getKeyDependencies","can-reflect: can get dependencies for key"),
+	getKeyDependencies: makeErrorIfMissing("can.getKeyDependencies","can-reflect: can not determine dependencies"),
+
+	// TODO: use getKeyDeps once we know what that needs to look like
+	keyHasDependencies: makeErrorIfMissing("can.keyHasDependencies","can-reflect: can not determine if this has key dependencies"),
 
 	// VALUE
 	onValue: makeErrorIfMissing("can.onValue","can-reflect: can not observe value change"),
 	offValue: makeErrorIfMissing("can.offValue","can-reflect: can not unobserve value change"),
 
-	getValueDependencies: makeErrorIfMissing("can.getKeyDependencies","can-reflect: can get dependencies for value"),
+	getValueDependencies: makeErrorIfMissing("can.getValueDependencies","can-reflect: can not determine dependencies"),
+
+	// TODO: use getValueDeps once we know what that needs to look like
+	valueHasDependencies: makeErrorIfMissing("can.valueHasDependencies","can-reflect: can not determine if value has dependencies"),
 
 	// EVENT
 	onEvent: function(obj, eventName, callback){
