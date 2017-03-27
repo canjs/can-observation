@@ -1,6 +1,6 @@
 {
   "name": "can-reflect",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "reflection on unknown data types",
   "homepage": "http://canjs.com",
   "repository": {
@@ -13,7 +13,7 @@
     "url": "http://donejs.com"
   },
   "scripts": {
-	"preversion": "npm test",
+    "preversion": "npm test",
     "postpublish": "git push --tags && git push",
     "testee": "testee test.html --browsers firefox",
     "test": "npm run jshint && npm run testee",
@@ -51,7 +51,7 @@
     ]
   },
   "dependencies": {
-	"can-symbol": "0.X"
+    "can-symbol": "0.X"
   },
   "devDependencies": {
     "jshint": "^2.9.1",
