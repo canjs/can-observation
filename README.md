@@ -7,6 +7,16 @@ Reflect allows you to reflection on unknown data types.
 By looking for symbols in [can-symbol], `can-reflect` lets someone act upon
 any data type without having to have prior knowledge of it.
 
+```js
+var Thing = function(){
+
+};
+Thing.prototype.method = function(){}
+
+var canReflect = require("can-reflect");
+canReflect.isConstructorLike(Thing) //-> true
+```
+
 The different reflections you can use are grouped by reflection type as follows:
 
 - Type Reflections - Tell you what the value is.
