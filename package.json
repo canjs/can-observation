@@ -41,8 +41,8 @@
     "can-namespace": "1.0.0",
     "can-types": "^1.0.1",
     "can-util": "^3.2.2",
-    "can-reflect": "^0.0.0",
-    "can-symbol": "^0.0.0"
+    "can-reflect": "^0.X",
+    "can-symbol": "^0.X"
   },
   "devDependencies": {
     "bit-docs": "^0.0.7",
