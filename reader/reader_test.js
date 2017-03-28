@@ -179,24 +179,22 @@ test("write to a map in a compute", function(){
 });
 
 test("promise readers throw errors (#70)", function() {
+	expect(1);
+	window.onerror = function(message) {
+		if (message === "Uncaught Error: Something") {
+			ok(true);
+			start();
+			return true;
+		}
+
+		return false;
+	};
+
 	var promise = new Promise(function(resolve, reject) {
 		setTimeout(function() {
 			reject("Something");
 		}, 0);
 	});
-
-	var _setTimeout = setTimeout;
-	setTimeout = function(fn, delay) {
-		let matches = fn.toString().includes("throw new Error(reason)");
-		ok(matches);
-
-		if (matches) {
-			setTimeout = _setTimeout;
-			return start();
-		} else {
-			return _setTimeout(fn, delay);
-		}
-	};
 
 	var c = new Observation(function() {
 		return observeReader.read(promise, observeReader.reads("value"), {}).value;
