@@ -231,8 +231,13 @@ observeReader = {
 						observeData.reason = reason;
 						observeData.state = "rejected";
 						observeData.dispatch("state",["rejected","pending"]);
+
+						setTimeout(function() {
+							throw new Error(reason);
+						}, 1);
 					});
 				}
+
 				Observation.add(observeData,"state");
 				return prop.key in observeData ? observeData[prop.key] : value[prop.key];
 			}

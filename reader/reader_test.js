@@ -177,3 +177,31 @@ test("write to a map in a compute", function(){
 
 	QUnit.equal(map.complete, false, "value set");
 });
+
+test("promise readers throw errors (#70)", function() {
+	var promise = new Promise(function(resolve, reject) {
+		setTimeout(function() {
+			reject("Something");
+		}, 0);
+	});
+
+	var _setTimeout = setTimeout;
+	setTimeout = function(fn, delay) {
+		let matches = fn.toString().includes("throw new Error(reason)");
+		ok(matches);
+
+		if (matches) {
+			setTimeout = _setTimeout;
+			return start();
+		} else {
+			return _setTimeout(fn, delay);
+		}
+	};
+
+	var c = new Observation(function() {
+		return observeReader.read(promise, observeReader.reads("value"), {}).value;
+	}, null, { updater: function() {} });
+
+	c.start();
+	stop();
+});
