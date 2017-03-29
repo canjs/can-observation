@@ -95,13 +95,18 @@ var canSymbol = require('can-symbol');
  * ```
  */
 
+
+
 function Observation(func, context, compute){
 	this.newObserved = {};
 	this.oldObserved = null;
 	this.func = func;
 	this.context = context;
 	this.compute = compute && compute.updater ? compute : {updater: compute};
-	this.onDependencyChange = this.onDependencyChange.bind(this);
+	var observation = this;
+	this.onDependencyChange = function(value, legacyValue){
+		observation.dependencyChange(this, value, legacyValue);
+	};
 	this.ignore = 0;
 	this.needsUpdate= false;
 	this.handlers = null;
