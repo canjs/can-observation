@@ -183,8 +183,8 @@ assign(Observation.prototype,{
 			}
 		}
 	},
-	onDependencyChange: function(){
-		this.dependencyChange();
+	onDependencyChange: function(value){
+		this.dependencyChange(value);
 	},
 	update: function(batchNum){
 		if(this.needsUpdate) {
