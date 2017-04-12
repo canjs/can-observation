@@ -5,7 +5,11 @@ var types = require('can-types');
 var dev = require('can-util/js/dev/dev');
 var canEvent = require('can-event');
 var each = require("can-util/js/each/each");
+var canSymbol = require("can-symbol");
+var canReflect = require("can-reflect");
 
+
+var getValueSymbol = canSymbol.for("can.getValue");
 var observeReader;
 var isAt = function(index, reads) {
 	var prevRead = reads[index-1];
@@ -154,16 +158,16 @@ observeReader = {
 			}
 		},
 		{
-			name: "compute",
+			name: "isValueLike",
 			// compute value reader
 			test: function(value, i, reads, options){
-				return types.isCompute(value) && !isAt(i, reads);
+				return value && value[getValueSymbol] && !isAt(i, reads);
 			},
 			read: function(value, i, reads, options, state){
 				if(options.readCompute === false && i === reads.length ) {
 					return value;
 				}
-				return value.get ? value.get() : value();
+				return canReflect.getValue(value);
 			},
 			write: function(base, newVal){
 				if(base.set) {
@@ -317,10 +321,10 @@ observeReader = {
 		// here's where we need to figure out the best way to write
 
 		// if property being set points at a compute, set the compute
-		if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options) ) {
-			observeReader.valueReadersMap.compute.write(parent[last.key], value, options);
+		if( observeReader.valueReadersMap.isValueLike.test(parent[last.key], keys.length - 1, keys, options) ) {
+			observeReader.valueReadersMap.isValueLike.write(parent[last.key], value, options);
 		} else {
-			if(observeReader.valueReadersMap.compute.test(parent, keys.length - 1, keys, options) ) {
+			if(observeReader.valueReadersMap.isValueLike.test(parent, keys.length - 1, keys, options) ) {
 				parent = parent();
 			}
 			if(observeReader.propertyReadersMap.map.test(parent)) {

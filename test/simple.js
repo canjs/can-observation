@@ -74,10 +74,10 @@ var reflectiveCompute = function(getter, name){
 
 	observation = new Observation(getter);
 
-	canReflect.set(fn, Symbol.for("can.onValue"), function(handler){
+	canReflect.set(fn, canSymbol.for("can.onValue"), function(handler){
 		canReflect.onValue( observation, handler );
 	});
-	canReflect.set(fn, Symbol.for("can.offValue"), function(handler){
+	canReflect.set(fn, canSymbol.for("can.offValue"), function(handler){
 		canReflect.offValue( observation, handler );
 	});
 	//canReflect.set(fn, Symbol.for("can.getValue"), observation.get.bind(observation));
@@ -99,10 +99,10 @@ var reflectiveValue = function(value){
 		}
 	};
 	CID(fn);
-	canReflect.set(fn, Symbol.for("can.onValue"), function(handler){
+	canReflect.set(fn, canSymbol.for("can.onValue"), function(handler){
 		handlers.push(handler);
 	});
-	canReflect.set(fn, Symbol.for("can.offValue"), function(handler){
+	canReflect.set(fn, canSymbol.for("can.offValue"), function(handler){
 		var index = handlers.indexOf(handler);
 		handlers.splice(index, 1);
 	});
@@ -124,10 +124,10 @@ var reflectiveObservable = function(value){
 		value: value,
 		handlers: {value: []}
 	};
-	canReflect.set(obs, Symbol.for("can.onKeyValue"), function(eventName, handler){
+	canReflect.set(obs, canSymbol.for("can.onKeyValue"), function(eventName, handler){
 		this.handlers[eventName].push(handler);
 	});
-	canReflect.set(obs, Symbol.for("can.offKeyValue"), function(eventName, handler){
+	canReflect.set(obs, canSymbol.for("can.offKeyValue"), function(eventName, handler){
 		var index = this.handlers.value.indexOf(handler);
 		this.handlers[eventName].splice(index, 1);
 	});

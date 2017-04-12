@@ -494,3 +494,28 @@ QUnit.test("Observation can listen to something decorated with onValue and offVa
 
 	QUnit.equal( canReflect.getValue(o), 30);
 });
+
+QUnit.test("Observation can itself be observable", function(){
+	var v1 = reflectiveObservable(1);
+	var v2 = reflectiveObservable(2);
+
+	var oA = new Observation(function(){
+		return v1.get() + v2.get();
+	});
+	var oB = new Observation(function(){
+		return oA.get() * 3;
+	});
+
+	canReflect.onValue(oB, function(){});
+
+
+	QUnit.equal( canReflect.getValue(oB), 9);
+
+	canBatch.start();
+	v1.set(10);
+	v2.set(20);
+	canBatch.stop();
+
+	QUnit.equal( canReflect.getValue(oB), 90);
+	QUnit.ok(oA.bound, "bound on oA");
+});

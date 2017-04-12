@@ -21,6 +21,7 @@ var namespace = require('can-namespace');
 var canLog = require('can-util/js/log/log');
 var canReflect = require('can-reflect');
 var canSymbol = require('can-symbol');
+var CID = require("can-cid");
 
 /**
  * @module {constructor} can-observation
@@ -102,7 +103,8 @@ function Observation(func, context, compute){
 	this.oldObserved = null;
 	this.func = func;
 	this.context = context;
-	this.compute = compute && compute.updater ? compute : {updater: compute};
+	this.compute = compute && (compute.updater || ("isObservable" in compute)) ? compute : {updater: compute};
+	this.isObservable = typeof compute === "object" ? compute.isObservable : true;
 	var observation = this;
 	this.onDependencyChange = function(value, legacyValue){
 		observation.dependencyChange(this, value, legacyValue);
@@ -110,6 +112,7 @@ function Observation(func, context, compute){
 	this.ignore = 0;
 	this.needsUpdate= false;
 	this.handlers = null;
+	CID(this);
 }
 
 // ### observationStack
@@ -144,6 +147,23 @@ Observation.remaining = remaining;
 assign(Observation.prototype,{
 	// something is reading the value of this compute
 	get: function(){
+
+		// If an external observation is tracking observables and
+		// this compute can be listened to by "function" based computes ....
+		if( this.isObservable && Observation.isRecording() ) {
+
+
+			// ... tell the tracking compute to listen to change on this observation.
+			Observation.add(this);
+			// ... if we are not bound, we should bind so that
+			// we don't have to re-read to get the value of this compute.
+			if (!this.bound) {
+				Observation.temporarilyBind(this);
+			}
+
+		}
+
+
 		if(this.bound) {
 			// Flush events so this compute should have been notified.
 			// But we want not only update
@@ -634,6 +654,35 @@ Observation.isRecording = function(){
 	var last = len && observationStack[len-1];
 	return last && (last.ignore === 0) && last;
 };
+
+
+// temporarily bind
+
+var noop = function(){};
+// A list of temporarily bound computes
+var observables;
+// Unbinds all temporarily bound computes.
+var unbindComputes = function () {
+	for (var i = 0, len = observables.length; i < len; i++) {
+		canReflect.offValue(observables[i], noop);
+	}
+	observables = null;
+};
+
+// ### temporarilyBind
+// Binds computes for a moment to cache their value and prevent re-calculating it.
+Observation.temporarilyBind = function (compute) {
+	var computeInstance = compute.computeInstance || compute;
+	canReflect.onValue(computeInstance, noop);
+	if (!observables) {
+		observables = [];
+		setTimeout(unbindComputes, 10);
+	}
+	observables.push(computeInstance);
+};
+
+
+
 
 
 // can-reflect bindings ===========
