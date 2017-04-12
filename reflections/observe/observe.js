@@ -3,20 +3,20 @@ var canSymbol = require("can-symbol");
 var slice = [].slice;
 
 function makeFallback(symbolName, fallbackName) {
-	return function(obj){
+	return function(obj, event, handler){
 		var method = obj[canSymbol.for(symbolName)];
 		if(method !== undefined) {
-			return method.apply(obj, slice.call(arguments, 1));
+			return method.call(obj, event, handler);
 		}
 		return this[fallbackName].apply(this, arguments);
 	};
 }
 
 function makeErrorIfMissing(symbolName, errorMessage){
-	return function(obj){
+	return function(obj, arg1, arg2){
 		var method = obj[canSymbol.for(symbolName)];
 		if(method !== undefined) {
-			return method.apply(obj, slice.call(arguments, 1));
+			return method.call(obj, arg1, arg2);
 		}
 		throw new Error(errorMessage);
 	};
@@ -53,7 +53,7 @@ module.exports = {
 		if(obj) {
 			var onEvent = obj[canSymbol.for("can.onEvent")];
 			if(onEvent !== undefined) {
-				return onEvent.apply(obj, slice.call(arguments, 1));
+				return onEvent.call(obj, eventName, callback);
 			} else if(obj.addEventListener) {
 				obj.addEventListener(eventName, callback);
 			}
@@ -63,7 +63,7 @@ module.exports = {
 		if(obj) {
 			var offEvent = obj[canSymbol.for("can.offEvent")];
 			if(offEvent !== undefined) {
-				return offEvent.apply(obj, slice.call(arguments, 1));
+				return offEvent.call(obj, eventName, callback);
 			}  else if(obj.removeEventListener) {
 				obj.removeEventListener(eventName, callback);
 			}
