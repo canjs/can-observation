@@ -232,9 +232,7 @@ observeReader = {
 						observeData.state = "rejected";
 						observeData.dispatch("state",["rejected","pending"]);
 
-						setTimeout(function() {
-							throw new Error(reason);
-						}, 1);
+						throw reason instanceof Error ? reason : new Error(reason);
 					});
 				}
 
