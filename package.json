@@ -54,7 +54,7 @@
     "steal": "^1.2.3",
     "steal-benchmark": "0.0.1",
     "steal-qunit": "^1.0.1",
-    "steal-tools": "^1.1.2",
+    "steal-tools": "^1.3.3",
     "testee": "^0.3.0"
   },
   "repository": {
