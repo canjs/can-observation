@@ -232,7 +232,9 @@ observeReader = {
 						observeData.state = "rejected";
 						observeData.dispatch("state",["rejected","pending"]);
 
-						throw reason instanceof Error ? reason : new Error(reason);
+						//!steal-remove-start
+						dev.error("Failed promise:", reason);
+						//!steal-remove-end
 					});
 				}
 

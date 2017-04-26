@@ -40,7 +40,7 @@
     "can-event": "^3.0.1",
     "can-namespace": "1.0.0",
     "can-types": "^1.0.1",
-    "can-util": "^3.2.2"
+    "can-util": "^3.5.0"
   },
   "devDependencies": {
     "bit-docs": "^0.0.7",
