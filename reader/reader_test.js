@@ -2,7 +2,6 @@ var observeReader = require("./reader");
 var QUnit = require('steal-qunit');
 var Observation = require('can-observation');
 var canEvent = require('can-event');
-var dev = require('can-util/js/dev/dev');
 
 var assign = require("can-util/js/assign/assign");
 var DefineMap = require("can-define/map/map");
@@ -177,27 +176,4 @@ test("write to a map in a compute", function(){
 	observeReader.write(computeObject, "complete", false);
 
 	QUnit.equal(map.complete, false, "value set");
-});
-
-test("promise readers throw errors (#70)", function() {
-	expect(1);
-	var oldError = dev.error;
-	dev.error = function() {
-		dev.error = oldError;
-		ok(true);
-		start();
-	};
-
-	var promise = new Promise(function(resolve, reject) {
-		setTimeout(function() {
-			reject("Something");
-		}, 0);
-	});
-
-	var c = new Observation(function() {
-		return observeReader.read(promise, observeReader.reads("value"), {}).value;
-	}, null, { updater: function() {} });
-
-	c.start();
-	stop();
 });

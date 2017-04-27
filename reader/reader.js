@@ -231,13 +231,8 @@ observeReader = {
 						observeData.reason = reason;
 						observeData.state = "rejected";
 						observeData.dispatch("state",["rejected","pending"]);
-
-						//!steal-remove-start
-						dev.error("Failed promise:", reason);
-						//!steal-remove-end
 					});
 				}
-
 				Observation.add(observeData,"state");
 				return prop.key in observeData ? observeData[prop.key] : value[prop.key];
 			}
