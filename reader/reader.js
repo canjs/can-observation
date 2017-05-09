@@ -161,7 +161,7 @@ observeReader = {
 			name: "isValueLike",
 			// compute value reader
 			test: function(value, i, reads, options){
-				return value && value[getValueSymbol] && !isAt(i, reads);
+				return value && value[getValueSymbol] && (options.foundAt || !isAt(i, reads) );
 			},
 			read: function(value, i, reads, options, state){
 				if(options.readCompute === false && i === reads.length ) {
@@ -247,7 +247,7 @@ observeReader = {
 			name: "object",
 			// this is the default
 			test: function(){return true;},
-			read: function(value, prop){
+			read: function(value, prop, i, options){
 				if(value == null) {
 					return undefined;
 				} else {
@@ -257,6 +257,7 @@ observeReader = {
 						}
 						// TODO: remove in 3.0.  This is for backwards compat with @key and @index.
 						else if( prop.at && specialRead[prop.key] && ( ("@"+prop.key) in value)) {
+							options.foundAt = true;
 							//!steal-remove-start
 							dev.warn("Use %"+prop.key+" in place of @"+prop.key+".");
 

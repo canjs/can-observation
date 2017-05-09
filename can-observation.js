@@ -150,6 +150,7 @@ assign(Observation.prototype,{
 
 		// If an external observation is tracking observables and
 		// this compute can be listened to by "function" based computes ....
+		// This doesn't happen with observations within computes
 		if( this.isObservable && Observation.isRecording() ) {
 
 
@@ -688,10 +689,10 @@ Observation.temporarilyBind = function (compute) {
 // can-reflect bindings ===========
 
 var callHandlers = function(newValue){
-	var handlers = this.handlers.slice(0);
-	for(var i = 0, len = handlers.length; i < len; i++) {
-		handlers[i].apply(this.compute, arguments);
-	}
+	// todo ... we need to be able to queue a bunch at once
+	this.handlers.forEach(function(handler){
+		canBatch.queue([handler, this.compute, [newValue]]);
+	}, this);
 };
 
 canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
