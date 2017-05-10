@@ -192,7 +192,7 @@ assign(Observation.prototype,{
 			this.oldValue = null;
 			// Get the new value and register this event handler to any new observables.
 			this.start();
-			if(oldValue !== this.value) {
+			if(this.deferred === true || oldValue !== this.value) {
 				this.compute.updater(this.value, oldValue, batchNum);
 				return true;
 			}
@@ -228,6 +228,29 @@ assign(Observation.prototype,{
 
 		observationStack.push(this);
 		this.value = this.func.call(this.context);
+		observationStack.pop();
+		this.updateBindings();
+	},
+	makeDeferred: function(){
+		this.deferred = true;
+
+		this.start = function() {};
+	},
+	startDeferred: function(){
+		this.bound = true;
+		this.oldObserved = this.newObserved || {};
+		this.ignore = 0;
+		this.newObserved = {};
+
+		// Add this function call's observation to the stack,
+		// runs the function, pops off the observation, and returns it.
+
+		observationStack.push(this);
+	},
+	stopDeferred: function(){
+		if (observationStack[observationStack.length - 1] !== this) {
+			throw new Error('Async observations stopped out of order.');
+		}
 		observationStack.pop();
 		this.updateBindings();
 	},
