@@ -233,6 +233,8 @@ observeReader = {
 						observeData.reason = reason;
 						observeData.state = "rejected";
 						observeData.dispatch("state",["rejected","pending"]);
+					}).catch(function() {
+						setTimeout(function(){ throw err }, 1);
 					});
 				}
 				Observation.add(observeData,"state");

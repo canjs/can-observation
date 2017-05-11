@@ -203,3 +203,24 @@ test("write to a map in a compute", function(){
 
 	QUnit.equal(map.complete, false, "value set");
 });
+
+test("promise readers throw errors (#70)", function() {
+	var promise = new Promise(function(resolve){
+		setTimeout(function(){
+			resolve("Something");
+		}, 0);
+	});
+	var c = new Observation(function() {
+		return observeReader.read(promise, observeReader.reads("value"), {}).value;
+		// throw new Error("that will never see the light of day");
+	}, null, {
+		updater: function() {
+			debugger;
+			start();
+		},
+	});
+	debugger;
+	c.start();
+
+	stop();
+});
