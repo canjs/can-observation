@@ -2,7 +2,6 @@ var Observation = require('can-observation');
 var assign = require('can-util/js/assign/assign');
 var CID = require('can-cid');
 var types = require('can-types');
-var dev = require('can-util/js/dev/dev');
 var canEvent = require('can-event');
 var each = require("can-util/js/each/each");
 
@@ -28,8 +27,6 @@ var readValue = function(value, index, reads, options, state, prev){
 
 	return value;
 };
-
-var specialRead = {index: true, key: true, event: true, element: true, viewModel: true};
 
 var checkForObservableAndNotify = function(options, state, getObserves, value, index){
 	if(options.foundObservable && !state.foundObservable) {
@@ -250,15 +247,6 @@ observeReader = {
 					if(typeof value === "object") {
 						if(prop.key in value) {
 							return value[prop.key];
-						}
-						// TODO: remove in 3.0.  This is for backwards compat with @key and @index.
-						else if( prop.at && specialRead[prop.key] && ( ("@"+prop.key) in value)) {
-							//!steal-remove-start
-							dev.warn("Use %"+prop.key+" in place of @"+prop.key+".");
-
-							//!steal-remove-end
-
-							return value["@"+prop.key];
 						}
 					} else {
 						return value[prop.key];
