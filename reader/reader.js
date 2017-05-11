@@ -4,7 +4,8 @@ var CID = require('can-cid');
 var types = require('can-types');
 var dev = require('can-util/js/dev/dev');
 var canEvent = require('can-event');
-var each = require("can-util/js/each/each");
+var each = require('can-util/js/each/each');
+var isPromiseLike = require('can-util/js/is-promise-like/is-promise-like');
 
 var observeReader;
 var isAt = function(index, reads) {
@@ -203,7 +204,8 @@ observeReader = {
 		{
 			name: "promise",
 			test: function(value){
-				return types.isPromise(value);
+				// eventually this will use canReflect.isPromiseLike
+				return isPromiseLike(value);
 			},
 			read: function(value, prop, index, options, state){
 				var observeData = value.__observeData;

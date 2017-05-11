@@ -18,8 +18,6 @@ QUnit.module('can-observation/reader',{
 	}
 });
 
-
-
 test("can.Compute.read can read a promise (#179)", function(){
 	var data = {
 		promise: new Promise(function(resolve){
@@ -31,6 +29,34 @@ test("can.Compute.read can read a promise (#179)", function(){
 	var calls = 0;
 	var c = new Observation(function(){
 		return observeReader.read(data,observeReader.reads("promise.value")).value;
+	}, null, {
+		updater: function(newVal, oldVal){
+			calls++;
+			equal(calls, 1, "only one call");
+			equal(newVal, "Something", "new value");
+			equal(oldVal, undefined, "oldVal");
+			start();
+		}
+	});
+	c.start();
+
+	stop();
+
+});
+
+test("can.Compute.read can read a promise-like (#82)", function(){
+	var data = {
+		promiseLike: {
+			then: function(resolve) {
+				setTimeout(function(){
+					resolve("Something");
+				}, 2);
+			}
+		}
+	};
+	var calls = 0;
+	var c = new Observation(function(){
+		return observeReader.read(data,observeReader.reads("promiseLike.value")).value;
 	}, null, {
 		updater: function(newVal, oldVal){
 			calls++;
