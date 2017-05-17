@@ -691,7 +691,7 @@ Observation.temporarilyBind = function (compute) {
 
 // can-reflect bindings ===========
 
-var callHandlers = function(/* newValue */){
+var callHandlers = function(newValue){
 	// todo ... we need to be able to queue a bunch at once
 	this.handlers.forEach(function(handler){
 		canBatch.queue([handler, this.compute, [newValue]]);
