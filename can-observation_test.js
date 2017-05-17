@@ -409,7 +409,7 @@ QUnit.test('should throw if can-namespace.Observation is already defined', funct
 });
 
 
-QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 7,function(){
+QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(){
 	var obs1 = assign({prop1: 1}, canEvent);
     CID(obs1);
     var obs2 = assign({prop2: 2}, canEvent);
@@ -425,6 +425,7 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	QUnit.ok(canReflect.isValueLike(observation), "it is value like!");
 
 	QUnit.equal(canReflect.getValue(observation), 3, "get unbound");
+	QUnit.equal(canReflect.valueHasDependencies(observation), undefined, "valueHasDependencies undef'd before start");
 
 	var stop = observation.stop;
 	observation.stop = function(){
@@ -443,7 +444,7 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 
 	canReflect.onValue(observation, handler);
 	QUnit.equal(canReflect.getValue(observation), 3, "get bound");
-	QUnit.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies");
+	QUnit.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies true after start");
 	canBatch.start();
 	obs1.prop1 = 10;
 	obs2.prop2 = 20;
@@ -477,13 +478,17 @@ QUnit.test("getValueDependencies work with can-reflect", function() {
 	});
 
 	var deps = canReflect.getValueDependencies(observation);
+	QUnit.equal(deps, undefined, "getValueDependencies undefined for unstarted observation");
+
+	observation.start();
+	deps = canReflect.getValueDependencies(observation);
 	QUnit.ok(
 		deps.keyDependencies.has(obs1),
-		"valueHasDependencies"
+		"getValueDependencies -- key deps"
 	);
 	QUnit.ok(
 		deps.valueDependencies.has(obs2),
-		"valueHasDependencies"
+		"getValueDependencies -- value deps"
 	);
 
 });

@@ -723,7 +723,7 @@ canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(ha
 canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation.prototype.get);
 
 Observation.prototype.hasDependencies = function(){
-	return !isEmptyObject(this.newObserved);
+	return this.bound ? !isEmptyObject(this.newObserved) : undefined;
 };
 canReflect.set(Observation.prototype, canSymbol.for("can.isValueLike"), true);
 canReflect.set(Observation.prototype, canSymbol.for("can.isMapLike"), false);
@@ -732,26 +732,22 @@ canReflect.set(Observation.prototype, canSymbol.for("can.isListLike"), false);
 canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
 
 canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"), function() {
-	var rets = {},
-		bound = this.bound;
-	if(!bound) {
-		this.start();
-	}
-	canReflect.eachKey(this.newObserved || {}, function(dep) {
-		if(canReflect.isValueLike(dep.obj)) {
-			rets.valueDependencies = rets.valueDependencies || new CIDSet();
-			rets.valueDependencies.add(dep.obj);
-		} else {
-			rets.keyDependencies = rets.keyDependencies || new CIDMap();
-			if(rets.keyDependencies.get(dep.obj)) {
-				rets.keyDependencies.get(dep.obj).push(dep.event);
+	var rets;
+	if(this.bound) {
+		rets = {};
+		canReflect.eachKey(this.newObserved || {}, function(dep) {
+			if(canReflect.isValueLike(dep.obj)) {
+				rets.valueDependencies = rets.valueDependencies || new CIDSet();
+				rets.valueDependencies.add(dep.obj);
 			} else {
-				rets.keyDependencies.set(dep.obj, [dep.event]);
+				rets.keyDependencies = rets.keyDependencies || new CIDMap();
+				if(rets.keyDependencies.get(dep.obj)) {
+					rets.keyDependencies.get(dep.obj).push(dep.event);
+				} else {
+					rets.keyDependencies.set(dep.obj, [dep.event]);
+				}
 			}
-		}
-	});
-	if(!bound) {
-		this.stop();
+		});
 	}
 	return rets;
 });
