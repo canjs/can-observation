@@ -16,6 +16,7 @@ var canBatch = require("can-event/batch/batch");
 var eventAsync = require("can-event/async/async");
 var clone = require("steal-clone");
 var canReflect = require("can-reflect");
+var canSymbol = require("can-symbol");
 
 QUnit.module('can-observation',{
 	setup: function(){
@@ -451,6 +452,39 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	canBatch.stop();
 
 	QUnit.equal(canReflect.getValue(observation), 30, "get bound");
+
+});
+
+QUnit.test("getValueDependencies work with can-reflect", function() {
+
+	var obs1 = assign({prop1: 1}, canEvent);
+    CID(obs1);
+    var obs2 = function() {
+			return 2;
+    };
+    obs2[canSymbol.for("can.onValue")] = function() {};
+    obs2[canSymbol.for("can.offValue")] = function() {};
+    // Ensure that obs2 is value-like
+    obs2[canSymbol.for("can.getValue")] = function() {
+			return this();
+    };
+
+	var observation = new Observation(function() {
+
+		Observation.add(obs1, "prop1");
+		Observation.add(obs2);
+		return obs1.prop1 + obs2();
+	});
+
+	var deps = canReflect.getValueDependencies(observation);
+	QUnit.ok(
+		deps.keyDependencies.has(obs1),
+		"valueHasDependencies"
+	);
+	QUnit.ok(
+		deps.valueDependencies.has(obs2),
+		"valueHasDependencies"
+	);
 
 });
 

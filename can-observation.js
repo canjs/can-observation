@@ -1,3 +1,4 @@
+/* global setTimeout, require */
 // # can-observation - nice
 //
 // This module:
@@ -22,6 +23,8 @@ var canLog = require('can-util/js/log/log');
 var canReflect = require('can-reflect');
 var canSymbol = require('can-symbol');
 var CID = require("can-cid");
+var CIDMap = require("can-util/js/cid-map/cid-map");
+var CIDSet = require("can-util/js/cid-set/cid-set");
 
 /**
  * @module {constructor} can-observation
@@ -688,7 +691,7 @@ Observation.temporarilyBind = function (compute) {
 
 // can-reflect bindings ===========
 
-var callHandlers = function(newValue){
+var callHandlers = function(/* newValue */){
 	// todo ... we need to be able to queue a bunch at once
 	this.handlers.forEach(function(handler){
 		canBatch.queue([handler, this.compute, [newValue]]);
@@ -698,9 +701,11 @@ var callHandlers = function(newValue){
 canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
 	if(!this.handlers) {
 		this.handlers = [];
+		//!steal-remove-start
 		if(this.compute.updater) {
 			console.warn("can-observation bound to with an existing handler");
 		}
+		//!steal-remove-end
 		this.compute.updater = callHandlers.bind(this);
 		this.start();
 	}
@@ -720,7 +725,36 @@ canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation
 Observation.prototype.hasDependencies = function(){
 	return !isEmptyObject(this.newObserved);
 };
+canReflect.set(Observation.prototype, canSymbol.for("can.isValueLike"), true);
+canReflect.set(Observation.prototype, canSymbol.for("can.isMapLike"), false);
+canReflect.set(Observation.prototype, canSymbol.for("can.isListLike"), false);
+
 canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
+
+canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"), function() {
+	var rets = {},
+		bound = this.bound;
+	if(!bound) {
+		this.start();
+	}
+	canReflect.eachKey(this.newObserved || {}, function(dep) {
+		if(canReflect.isValueLike(dep.obj)) {
+			rets.valueDependencies = rets.valueDependencies || new CIDSet();
+			rets.valueDependencies.add(dep.obj);
+		} else {
+			rets.keyDependencies = rets.keyDependencies || new CIDMap();
+			if(rets.keyDependencies.get(dep.obj)) {
+				rets.keyDependencies.get(dep.obj).push(dep.event);
+			} else {
+				rets.keyDependencies.set(dep.obj, [dep.event]);
+			}
+		}
+	});
+	if(!bound) {
+		this.stop();
+	}
+	return rets;
+});
 
 if (namespace.Observation) {
 	throw new Error("You can't have two versions of can-observation, check your dependencies");
