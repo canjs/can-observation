@@ -103,6 +103,18 @@ QUnit.test("eachIndex", function(){
 		QUnit.equal(index, 0);
 		QUnit.equal(value, "a");
 	});
+
+	function ArrayLike() {}
+	ArrayLike.prototype = new Array();
+	ArrayLike.prototype[canSymbol.iterator] = null;
+
+	var noniterator = new ArrayLike();
+	noniterator.push("a");
+	shapeReflections.eachIndex(noniterator, function(value, index){
+		QUnit.equal(index, 0);
+		QUnit.equal(value,"a");
+	});
+
 });
 
 QUnit.test("eachKey", function(){
