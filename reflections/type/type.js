@@ -45,8 +45,13 @@ function isPrimitive(obj){
 }
 
 function isValueLike(obj) {
+	var symbolValue;
 	if(isPrimitive(obj)) {
 		return true;
+	}
+	symbolValue = obj[canSymbol.for("can.isValueLike")];
+	if( typeof symbolValue !== "undefined") {
+		return symbolValue;
 	}
 	var value = obj[canSymbol.for("can.getValue")];
 	if(value !== undefined) {
@@ -55,8 +60,13 @@ function isValueLike(obj) {
 }
 
 function isMapLike(obj) {
+	var symbolValue;
 	if(isPrimitive(obj)) {
 		return false;
+	}
+	symbolValue = obj[canSymbol.for("can.isMapLike")];
+	if( typeof symbolValue !== "undefined") {
+		return symbolValue;
 	}
 	var value = obj[canSymbol.for("can.getKeyValue")];
 	if(value !== undefined) {
@@ -77,12 +87,17 @@ function isObservableLike( obj ) {
 }
 
 function isListLike( list ) {
-	var type = typeof list;
+	var symbolValue,
+		type = typeof list;
 	if(type === "string") {
 		return true;
 	}
 	if( isPrimitive(list) ) {
 		return false;
+	}
+	symbolValue = list[canSymbol.for("can.isListLike")];
+	if( typeof symbolValue !== "undefined") {
+		return symbolValue;
 	}
 	var value = list[canSymbol.iterator];
 	if(value !== undefined) {
