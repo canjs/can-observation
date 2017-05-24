@@ -37,7 +37,11 @@ QUnit.test("isListLike", function(){
 	ok(typeReflections.isListLike({
 		length: 0
 	}), "object with 0 length");
-
+	var symboled = {};
+	getSetReflections.setKeyValue(symboled, canSymbol.for("can.isListLike"), false);
+	ok(!typeReflections.isListLike(symboled), "!@@can.isListLike");
+	getSetReflections.setKeyValue(symboled, canSymbol.for("can.isListLike"), true);
+	ok(typeReflections.isListLike(symboled), "@@can.isListLike");
 
 	if(typeof document !== "undefined") {
 		var ul = document.createElement("ul");
@@ -52,6 +56,11 @@ QUnit.test("isListLike", function(){
 QUnit.test("isMapLike", function(){
 	ok(typeReflections.isMapLike({}), "Object");
 	ok(typeReflections.isMapLike([]), "Array");
+	var symboled = {};
+	getSetReflections.setKeyValue(symboled, canSymbol.for("can.isMapLike"), false);
+	ok(!typeReflections.isMapLike(symboled), "!@@can.isMapLike");
+	getSetReflections.setKeyValue(symboled, canSymbol.for("can.isMapLike"), true);
+	ok(typeReflections.isMapLike(symboled), "@@can.isMapLike");
 
 	ok(!typeReflections.isMapLike("String"), "String");
 });
@@ -82,6 +91,12 @@ QUnit.test("isValueLike", function(){
 	var obj = {};
 	getSetReflections.setKeyValue(obj,canSymbol.for("can.getValue"), true);
 	ok(typeReflections.isValueLike(obj), "symboled");
+	var symboled = {};
+	getSetReflections.setKeyValue(symboled, canSymbol.for("can.isValueLike"), false);
+	ok(!typeReflections.isValueLike(symboled), "!@@can.isValueLike");
+	getSetReflections.setKeyValue(symboled, canSymbol.for("can.isValueLike"), true);
+	ok(typeReflections.isValueLike(symboled), "@@can.isValueLike");
+
 });
 
 QUnit.test("isSymbolLike", function(){
