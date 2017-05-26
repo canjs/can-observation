@@ -10,6 +10,7 @@ var canReflect = require("can-reflect");
 
 
 var getValueSymbol = canSymbol.for("can.getValue");
+var isValueLikeSymbol = canSymbol.for("can.isValueLike");
 var observeReader;
 var isAt = function(index, reads) {
 	var prevRead = reads[index-1];
@@ -161,7 +162,7 @@ observeReader = {
 			name: "isValueLike",
 			// compute value reader
 			test: function(value, i, reads, options){
-				return value && value[getValueSymbol] && (options.foundAt || !isAt(i, reads) );
+				return value && value[getValueSymbol] && value[isValueLikeSymbol] !== false && (options.foundAt || !isAt(i, reads) );
 			},
 			read: function(value, i, reads, options, state){
 				if(options.readCompute === false && i === reads.length ) {
