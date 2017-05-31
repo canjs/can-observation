@@ -334,6 +334,9 @@ observeReader = {
 			}
 			else if(observeReader.propertyReadersMap.object.test(parent)) {
 				observeReader.propertyReadersMap.object.write(parent, last.key, value, options);
+				if(options.observation) {
+					options.observation.update();
+				}
 			}
 		}
 	}
