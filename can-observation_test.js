@@ -468,7 +468,7 @@ QUnit.test("should not throw if offValue is called without calling onValue" , fu
 	} catch(e) {
 		QUnit.ok(false, e);
 	}
-})
+});
 
 QUnit.test("getValueDependencies work with can-reflect", function() {
 
