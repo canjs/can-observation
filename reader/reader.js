@@ -183,24 +183,18 @@ observeReader = {
 	propertyReaders: [
 		{
 			name: "map",
-			test: function(){
-				return types.isMapLike.apply(this, arguments) || types.isListLike.apply(this, arguments);
+			test: function(value){
+				return canReflect.isObservableLike(value) && canReflect.isMapLike(value);
 			},
 			read: function(value, prop, index, options, state){
-				var res = value.get ? value.get(prop.key) : value.attr(prop.key);
+				var res = canReflect.getKeyValue(value, prop.key);
 				if(res !== undefined) {
 					return res;
 				} else {
 					return value[prop.key];
 				}
 			},
-			write: function(base, prop, newVal){
-				if(typeof base.set === "function") {
-					base.set(prop, newVal);
-				} else {
-					base.attr(prop, newVal);
-				}
-			}
+			write: canReflect.setKeyValue
 		},
 		// read a promise
 		// it would be good to remove this ... then
