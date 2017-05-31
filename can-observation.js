@@ -712,10 +712,12 @@ canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(han
 });
 
 canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(handler){
-	var index = this.handlers.indexOf(handler);
-	this.handlers.splice(index, 1);
-	if(this.handlers.length === 0) {
-		this.stop();
+	if (this.handlers) {
+		var index = this.handlers.indexOf(handler);
+		this.handlers.splice(index, 1);
+		if(this.handlers.length === 0) {
+			this.stop();
+		}
 	}
 });
 

@@ -456,6 +456,20 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 
 });
 
+QUnit.test("should not throw if offValue is called without calling onValue" , function() {
+	var noop = function() {};
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+
+	try {
+		canReflect.offValue(observation, noop);
+		QUnit.ok(true, "should not throw");
+	} catch(e) {
+		QUnit.ok(false, e);
+	}
+})
+
 QUnit.test("getValueDependencies work with can-reflect", function() {
 
 	var obs1 = assign({prop1: 1}, canEvent);
