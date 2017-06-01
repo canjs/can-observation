@@ -306,6 +306,9 @@ assign(Observation.prototype,{
 			this.removeEdge(ob);
 		}
 		this.newObserved = {};
+	},
+	hasDependencies: function(){
+		return !isEmptyObject(this.newObserved);
 	}
 	/**
 	 * @property {*} can-observation.prototype.value
@@ -694,33 +697,30 @@ var callHandlers = function(newValue){
 		canBatch.queue([handler, this.compute, [newValue]]);
 	}, this);
 };
-
-canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
-	if(!this.handlers) {
-		this.handlers = [];
-		if(this.compute.updater) {
-			console.warn("can-observation bound to with an existing handler");
+[
+	[canSymbol.for("can.onValue"), function(handler){
+		if(!this.handlers) {
+			this.handlers = [];
+			if(this.compute.updater) {
+				console.warn("can-observation bound to with an existing handler");
+			}
+			this.compute.updater = callHandlers.bind(this);
+			this.start();
 		}
-		this.compute.updater = callHandlers.bind(this);
-		this.start();
-	}
-	this.handlers.push(handler);
+		this.handlers.push(handler);
+	}],
+	[canSymbol.for("can.offValue"), function(handler){
+		var index = this.handlers.indexOf(handler);
+		this.handlers.splice(index, 1);
+		if(this.handlers.length === 0) {
+			this.stop();
+		}
+	}],
+	[canSymbol.for("can.getValue"), Observation.prototype.get],
+	[canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies]
+].forEach(function(symbolMethodPair){
+	canReflect.set(Observation.prototype, symbolMethodPair[0], symbolMethodPair[1]);
 });
-
-canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(handler){
-	var index = this.handlers.indexOf(handler);
-	this.handlers.splice(index, 1);
-	if(this.handlers.length === 0) {
-		this.stop();
-	}
-});
-
-canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation.prototype.get);
-
-Observation.prototype.hasDependencies = function(){
-	return !isEmptyObject(this.newObserved);
-};
-canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
 
 if (namespace.Observation) {
 	throw new Error("You can't have two versions of can-observation, check your dependencies");
