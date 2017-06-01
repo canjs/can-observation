@@ -227,3 +227,9 @@ test("promise readers throw errors (#70)", function() {
 	c.start();
 	stop();
 });
+
+QUnit.test("reads can be passed a number (can-stache#207)", function(){
+	var reads = observeReader.reads(0);
+	QUnit.deepEqual(reads, [{key: "0", at: false}], "number converted to string");
+
+});
