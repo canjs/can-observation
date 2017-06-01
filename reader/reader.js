@@ -277,7 +277,8 @@ observeReader = {
 			}
 		}
 	],
-	reads: function(key) {
+	reads: function(keyArg) {
+		var key = ""+keyArg;
 		var keys = [];
 		var last = 0;
 		var at = false;
