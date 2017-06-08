@@ -1,3 +1,4 @@
+/*jshint -W003 */
 // # can-observation - nice
 //
 // This module:
@@ -91,7 +92,6 @@ var canLog = require('can-util/js/log/log');
  * me.name = "Ramiya"; // console.logs -> "Hello Ramiya"
  * ```
  */
-
 function Observation(func, context, compute){
 	this.newObserved = {};
 	this.oldObserved = null;
@@ -102,6 +102,14 @@ function Observation(func, context, compute){
 	this.childDepths = {};
 	this.ignore = 0;
 	this.needsUpdate= false;
+	if (!func) {
+		this.start = assignUniqueValue;
+	}
+}
+
+
+function assignUniqueValue() {
+ this.value = {};
 }
 
 // ### observationStack
@@ -275,6 +283,28 @@ assign(Observation.prototype,{
 			this.removeEdge(ob);
 		}
 		this.newObserved = {};
+	},
+	/**
+	 * @function can-observation.prototype.pushToStack pushToStack
+	 * @parent can-observation.prototype prototype
+	 *
+	 * @signature `observation.pushToStack()`
+	 *
+	 * Starts observing all observables in general until `.popFromStack()` is called.
+	 *
+	 */
+	pushToStack: function() {
+		this.bound = true;
+		this.oldObserved = this.newObserved || {};
+		this.ignore = 0;
+		this.newObserved = {};
+		// Add this function call's observation to the stack
+		observationStack.push(this);
+	},
+	popFromStack: function() {
+		// pops off the observation, and returns it.
+		observationStack.pop();
+		this.updateBindings();
 	}
 	/**
 	 * @property {*} can-observation.prototype.value

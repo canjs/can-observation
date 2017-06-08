@@ -403,3 +403,28 @@ QUnit.test('should throw if can-namespace.Observation is already defined', funct
 		start();
 	});
 });
+
+QUnit.test('pushToStack and popToStack allow observing reads outside of a function', function() {
+	stop(3);
+	var expected = ['Adam', 'Brian', 'Curtis', 'David'];
+	var i = 0;
+	var observable = simpleObservable('Adam');
+	var name = simpleCompute(function(){
+		return observable.get();
+	});
+	var observation = new Observation(null, null, function(newVal, oldVal, batchNum){
+		var expectedName = expected[i++];
+		QUnit.equal(name(), expectedName, 'Name has become '+expectedName+' and callback called');
+		start();
+	});
+	
+	QUnit.equal(name(), expected[i++], 'Name starts out Adam');
+	
+	observation.pushToStack();
+	name();
+	observation.popFromStack();
+	
+	observable.set('Brian');
+	observable.set('Curtis');
+	observable.set('David');
+});
