@@ -5,6 +5,7 @@ var canEvent = require('can-event');
 var dev = require('can-util/js/dev/dev');
 
 var assign = require("can-util/js/assign/assign");
+var CanMap = require("can-map");
 var DefineMap = require("can-define/map/map");
 var DefineList = require("can-define/list/list");
 var compute = require("can-compute");
@@ -148,6 +149,29 @@ test("can read from strings", function(){
 
 	var result =  observeReader.read(context,observeReader.reads("trim"),{});
 	QUnit.ok(result, context.trim);
+});
+
+test("read / write to CanMap", function(){
+	var map = new CanMap();
+	var c = new Observation(function(){
+		var data = observeReader.read(map,observeReader.reads("value"),{
+			foundObservable: function(obs){
+				QUnit.equal(obs, map, "got map");
+			}
+		});
+		return data.value;
+	}, null,function(newVal){
+		QUnit.equal(newVal, 1, "got updated");
+	});
+	c.start();
+	observeReader.write(map, "value", 1);
+});
+
+test("write properties with dots in their name in CanMap", function(){
+	var map = new CanMap();
+	observeReader.write(map, "foo\\.bar", 1);
+
+	QUnit.equal(map.attr('foo\.bar'), 1, "value set");
 });
 
 test("read / write to DefineMap", function(){

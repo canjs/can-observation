@@ -194,7 +194,11 @@ observeReader = {
 				if(typeof base.set === "function") {
 					base.set(prop, newVal);
 				} else {
-					base.attr(prop, newVal);
+					if (prop.indexOf('.') === -1) {
+						base.attr(prop, newVal);
+					} else {
+						base.attr({ [prop]: newVal });
+					}
 				}
 			}
 		},

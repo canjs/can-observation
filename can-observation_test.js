@@ -20,8 +20,6 @@ QUnit.module('can-observation',{
 	}
 });
 
-
-
 QUnit.test('nested traps are reset onto parent traps', function() {
     var obs1 = assign({}, canEvent);
     CID(obs1);
