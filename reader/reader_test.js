@@ -233,3 +233,13 @@ QUnit.test("reads can be passed a number (can-stache#207)", function(){
 	QUnit.deepEqual(reads, [{key: "0", at: false}], "number converted to string");
 
 });
+
+QUnit.test("can read primitive numbers (#88)", function(){
+	var reads = observeReader.reads("num@toFixed");
+	var toFixed = observeReader.read({
+		num: 5
+	}, reads, {}).value;
+
+	QUnit.equal(typeof toFixed, "function", "got to fixed");
+
+});
