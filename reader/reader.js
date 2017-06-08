@@ -102,7 +102,7 @@ observeReader = {
 
 			type = typeof cur;
 			// early exit if need be
-			if (i < reads.length && (cur === null || type !== 'function' && type !== 'object')) {
+			if (i < reads.length && (cur === null || cur === undefined )) {
 				if (options.earlyExit) {
 					options.earlyExit(prev, i - 1, cur);
 				}
