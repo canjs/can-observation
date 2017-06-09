@@ -307,6 +307,9 @@ observeReader = {
 	write: function(parent, key, value, options) {
 		var keys = typeof key === "string" ? observeReader.reads(key) : key;
 		var last;
+
+		options = options || {};
+
 		if(keys.length > 1) {
 			last = keys.pop();
 			parent = observeReader.read(parent, keys, options).value;
