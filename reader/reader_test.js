@@ -2,6 +2,7 @@ var observeReader = require("./reader");
 var QUnit = require('steal-qunit');
 var Observation = require('can-observation');
 var canEvent = require('can-event');
+var dev = require('can-util/js/dev/dev');
 
 var assign = require("can-util/js/assign/assign");
 var DefineMap = require("can-define/map/map");
@@ -18,8 +19,6 @@ QUnit.module('can-observation/reader',{
 	}
 });
 
-
-
 test("can.Compute.read can read a promise (#179)", function(){
 	var data = {
 		promise: new Promise(function(resolve){
@@ -31,6 +30,34 @@ test("can.Compute.read can read a promise (#179)", function(){
 	var calls = 0;
 	var c = new Observation(function(){
 		return observeReader.read(data,observeReader.reads("promise.value")).value;
+	}, null, {
+		updater: function(newVal, oldVal){
+			calls++;
+			equal(calls, 1, "only one call");
+			equal(newVal, "Something", "new value");
+			equal(oldVal, undefined, "oldVal");
+			start();
+		}
+	});
+	c.start();
+
+	stop();
+
+});
+
+test("can.Compute.read can read a promise-like (#82)", function(){
+	var data = {
+		promiseLike: {
+			then: function(resolve) {
+				setTimeout(function(){
+					resolve("Something");
+				}, 2);
+			}
+		}
+	};
+	var calls = 0;
+	var c = new Observation(function(){
+		return observeReader.read(data,observeReader.reads("promiseLike.value")).value;
 	}, null, {
 		updater: function(newVal, oldVal){
 			calls++;
@@ -176,4 +203,43 @@ test("write to a map in a compute", function(){
 	observeReader.write(computeObject, "complete", false);
 
 	QUnit.equal(map.complete, false, "value set");
+});
+
+test("promise readers throw errors (#70)", function() {
+	expect(1);
+	var oldError = dev.error;
+	dev.error = function() {
+		dev.error = oldError;
+		ok(true);
+		start();
+	};
+
+	var promise = new Promise(function(resolve, reject) {
+		setTimeout(function() {
+			reject("Something");
+		}, 0);
+	});
+
+	var c = new Observation(function() {
+		return observeReader.read(promise, observeReader.reads("value"), {}).value;
+	}, null, { updater: function() {} });
+
+	c.start();
+	stop();
+});
+
+QUnit.test("reads can be passed a number (can-stache#207)", function(){
+	var reads = observeReader.reads(0);
+	QUnit.deepEqual(reads, [{key: "0", at: false}], "number converted to string");
+
+});
+
+QUnit.test("can read primitive numbers (#88)", function(){
+	var reads = observeReader.reads("num@toFixed");
+	var toFixed = observeReader.read({
+		num: 5
+	}, reads, {}).value;
+
+	QUnit.equal(typeof toFixed, "function", "got to fixed");
+
 });

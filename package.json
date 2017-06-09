@@ -37,27 +37,27 @@
   },
   "dependencies": {
     "can-cid": "^1.0.0",
-    "can-event": "^3.1.2",
+    "can-event": "^3.3.0",
     "can-namespace": "1.0.0",
     "can-reflect": "^1.0.0-pre.1",
     "can-symbol": "^1.0.0-pre.0",
     "can-types": "^1.0.1",
-    "can-util": "^3.2.2"
+    "can-util": "^3.5.0"
   },
   "devDependencies": {
     "bit-docs": "^0.0.7",
     "can-compute": "^3.1.0-pre.11",
     "can-define": "^1.2.0-pre.4",
     "can-map": "^3.1.0-pre.11",
-    "done-serve": "^0.2.4",
-    "donejs-cli": "^0.9.5",
-    "generator-donejs": "^0.9.0",
+    "done-serve": "^1.2.0",
+    "donejs-cli": "^1.0.1",
+    "generator-donejs": "^1.0.5",
     "jshint": "^2.9.1",
     "steal": "^1.2.3",
     "steal-benchmark": "0.0.1",
     "steal-qunit": "^1.0.1",
     "steal-tools": "^1.1.2",
-    "testee": "^0.3.0"
+    "testee": "^0.5.0"
   },
   "repository": {
     "type": "git",

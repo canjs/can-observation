@@ -4,9 +4,10 @@ var CID = require('can-cid');
 var types = require('can-types');
 var dev = require('can-util/js/dev/dev');
 var canEvent = require('can-event');
-var each = require("can-util/js/each/each");
+var each = require('can-util/js/each/each');
 var canSymbol = require("can-symbol");
 var canReflect = require("can-reflect");
+var isPromiseLike = require('can-util/js/is-promise-like/is-promise-like');
 
 
 var getValueSymbol = canSymbol.for("can.getValue");
@@ -106,7 +107,7 @@ observeReader = {
 
 			type = typeof cur;
 			// early exit if need be
-			if (i < reads.length && (cur === null || type !== 'function' && type !== 'object')) {
+			if (i < reads.length && (cur === null || cur === undefined )) {
 				if (options.earlyExit) {
 					options.earlyExit(prev, i - 1, cur);
 				}
@@ -202,7 +203,8 @@ observeReader = {
 		{
 			name: "promise",
 			test: function(value){
-				return types.isPromise(value);
+				// eventually this will use canReflect.isPromiseLike
+				return isPromiseLike(value);
 			},
 			read: function(value, prop, index, options, state){
 				var observeData = value.__observeData;
@@ -230,8 +232,13 @@ observeReader = {
 						observeData.reason = reason;
 						observeData.state = "rejected";
 						observeData.dispatch("state",["rejected","pending"]);
+
+						//!steal-remove-start
+						dev.error("Failed promise:", reason);
+						//!steal-remove-end
 					});
 				}
+
 				Observation.add(observeData,"state");
 				return prop.key in observeData ? observeData[prop.key] : value[prop.key];
 			}
@@ -270,7 +277,8 @@ observeReader = {
 			}
 		}
 	],
-	reads: function(key) {
+	reads: function(keyArg) {
+		var key = ""+keyArg;
 		var keys = [];
 		var last = 0;
 		var at = false;
