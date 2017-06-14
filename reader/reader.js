@@ -1,15 +1,12 @@
 var Observation = require('can-observation');
-var assign = require('can-util/js/assign/assign');
-var CID = require('can-cid');
 var types = require('can-types');
 var dev = require('can-util/js/dev/dev');
-var canEvent = require('can-event');
 var each = require('can-util/js/each/each');
 var canSymbol = require("can-symbol");
 var canReflect = require("can-reflect");
 var isPromiseLike = require('can-util/js/is-promise-like/is-promise-like');
+var canReflectPromise = require("can-reflect-promise");
 var isEmptyObject = require("can-util/js/is-empty-object/is-empty-object");
-
 
 var getValueSymbol = canSymbol.for("can.getValue");
 var isValueLikeSymbol = canSymbol.for("can.isValueLike");
@@ -163,7 +160,7 @@ observeReader = {
 		{
 			name: "isValueLike",
 			// compute value reader
-			test: function(value, i, reads, options){
+			test: function(value, i, reads, options) {
 				return value && value[getValueSymbol] && value[isValueLikeSymbol] !== false && (options.foundAt || !isAt(i, reads) );
 			},
 			read: function(value, i, reads, options, state){
@@ -186,6 +183,12 @@ observeReader = {
 		{
 			name: "map",
 			test: function(value){
+				// the first time we try reading from a promise, set it up for
+				//  special reflections.
+				if(isPromiseLike(value) || typeof value === "object" && typeof value.then === "function") {
+					canReflectPromise(value);
+				}
+
 				return canReflect.isObservableLike(value) && canReflect.isMapLike(value);
 			},
 			read: function(value, prop, index, options, state){
@@ -197,52 +200,6 @@ observeReader = {
 				}
 			},
 			write: canReflect.setKeyValue
-		},
-		// read a promise
-		// it would be good to remove this ... then
-		//
-		{
-			name: "promise",
-			test: function(value){
-				// eventually this will use canReflect.isPromiseLike
-				return isPromiseLike(value);
-			},
-			read: function(value, prop, index, options, state){
-				var observeData = value.__observeData;
-				if(!value.__observeData) {
-					observeData = value.__observeData = {
-						isPending: true,
-						state: "pending",
-						isResolved: false,
-						isRejected: false,
-						value: undefined,
-						reason: undefined
-					};
-					CID(observeData);
-					// proto based would be faster
-					assign(observeData, canEvent);
-					value.then(function(value){
-						observeData.isPending = false;
-						observeData.isResolved = true;
-						observeData.value = value;
-						observeData.state = "resolved";
-						observeData.dispatch("state",["resolved","pending"]);
-					}, function(reason){
-						observeData.isPending = false;
-						observeData.isRejected = true;
-						observeData.reason = reason;
-						observeData.state = "rejected";
-						observeData.dispatch("state",["rejected","pending"]);
-
-						//!steal-remove-start
-						dev.error("Failed promise:", reason);
-						//!steal-remove-end
-					});
-				}
-
-				Observation.add(observeData,"state");
-				return prop.key in observeData ? observeData[prop.key] : value[prop.key];
-			}
 		},
 
 		// read a normal object
