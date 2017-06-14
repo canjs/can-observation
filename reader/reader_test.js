@@ -9,7 +9,6 @@ var DefineMap = require("can-define/map/map");
 var DefineList = require("can-define/list/list");
 var compute = require("can-compute");
 var eventAsync = require("can-event/async/async");
-var canSymbol = require("can-symbol");
 
 QUnit.module('can-observation/reader',{
 	setup: function(){
