@@ -1,5 +1,4 @@
 var Observation = require('can-observation');
-var types = require('can-types');
 var dev = require('can-util/js/dev/dev');
 var each = require('can-util/js/each/each');
 var canSymbol = require("can-symbol");
@@ -147,7 +146,7 @@ observeReader = {
 				if( isAt(i, reads) ) {
 					return i === reads.length ? value.bind(prev) : value;
 				}
-				else if(options.callMethodsOnObservables && types.isMapLike(prev)) {
+				else if(options.callMethodsOnObservables && canReflect.isObservableLike(prev) && canReflect.isMapLike(prev)) {
 					return value.apply(prev, options.args || []);
 				}
 				else if ( options.isArgument && i === reads.length ) {
