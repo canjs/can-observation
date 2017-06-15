@@ -6,7 +6,6 @@ var canSymbol = require("can-symbol");
 var canReflect = require("can-reflect");
 var isPromiseLike = require('can-util/js/is-promise-like/is-promise-like');
 var canReflectPromise = require("can-reflect-promise");
-var isEmptyObject = require("can-util/js/is-empty-object/is-empty-object");
 
 var getValueSymbol = canSymbol.for("can.getValue");
 var isValueLikeSymbol = canSymbol.for("can.isValueLike");
@@ -142,7 +141,7 @@ observeReader = {
 			name: "function",
 			// if this is a function before the last read and its not a constructor function
 			test: function(value, i, reads, options){
-				return (types.isCallableForValue(value) || typeof value === "function" && isEmptyObject(value.prototype)) && !types.isCompute(value);
+				return value && canReflect.isFunctionLike(value) && !canReflect.isConstructorLike(value);
 			},
 			read: function(value, i, reads, options, state, prev){
 				if( isAt(i, reads) ) {
