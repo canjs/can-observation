@@ -1,3 +1,4 @@
+/* global setTimeout, require */
 // # can-observation - nice
 //
 // This module:
@@ -16,8 +17,14 @@ require('can-event');
 var canEvent = require('can-event');
 var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
+var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
 var namespace = require('can-namespace');
 var canLog = require('can-util/js/log/log');
+var canReflect = require('can-reflect');
+var canSymbol = require('can-symbol');
+var CID = require("can-cid");
+var CIDMap = require("can-util/js/cid-map/cid-map");
+var CIDSet = require("can-util/js/cid-set/cid-set");
 
 /**
  * @module {constructor} can-observation
@@ -92,16 +99,23 @@ var canLog = require('can-util/js/log/log');
  * ```
  */
 
+
+
 function Observation(func, context, compute){
 	this.newObserved = {};
 	this.oldObserved = null;
 	this.func = func;
 	this.context = context;
-	this.compute = compute.updater ? compute : {updater: compute};
-	this.onDependencyChange = this.onDependencyChange.bind(this);
-	this.childDepths = {};
+	this.compute = compute && (compute.updater || ("isObservable" in compute)) ? compute : {updater: compute};
+	this.isObservable = typeof compute === "object" ? compute.isObservable : true;
+	var observation = this;
+	this.onDependencyChange = function(value, legacyValue){
+		observation.dependencyChange(this, value, legacyValue);
+	};
 	this.ignore = 0;
 	this.needsUpdate= false;
+	this.handlers = null;
+	CID(this);
 }
 
 // ### observationStack
@@ -136,6 +150,24 @@ Observation.remaining = remaining;
 assign(Observation.prototype,{
 	// something is reading the value of this compute
 	get: function(){
+
+		// If an external observation is tracking observables and
+		// this compute can be listened to by "function" based computes ....
+		// This doesn't happen with observations within computes
+		if( this.isObservable && Observation.isRecording() ) {
+
+
+			// ... tell the tracking compute to listen to change on this observation.
+			Observation.add(this);
+			// ... if we are not bound, we should bind so that
+			// we don't have to re-read to get the value of this compute.
+			if (!this.bound) {
+				Observation.temporarilyBind(this);
+			}
+
+		}
+
+
 		if(this.bound) {
 			// Flush events so this compute should have been notified.
 			// But we want not only update
@@ -158,28 +190,30 @@ assign(Observation.prototype,{
 		return this.compute._primaryDepth || 0;
 	},
 	addEdge: function(objEv){
-		objEv.obj.addEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observation) {
-			this.depth = null;
+		if(objEv.event === "undefined") {
+			canReflect.onValue(objEv.obj, this.onDependencyChange);
+		} else {
+			canReflect.onKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
 		}
 	},
 	removeEdge: function(objEv){
-		objEv.obj.removeEventListener(objEv.event, this.onDependencyChange);
-		if(objEv.obj.observation) {
-			this.depth = null;
+		if(objEv.event === "undefined") {
+			canReflect.offValue(objEv.obj, this.onDependencyChange);
+		} else {
+			canReflect.offKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
 		}
 	},
-	dependencyChange: function(ev){
+	dependencyChange: function(){
 		if(this.bound) {
 			// Only need to register once per batchNum
-			if(ev.batchNum !== this.batchNum) {
-				Observation.registerUpdate(this, ev.batchNum);
-				this.batchNum = ev.batchNum;
+			if(canBatch.batchNum !== this.batchNum) {
+				Observation.registerUpdate(this, canBatch.batchNum);
+				this.batchNum = canBatch.batchNum;
 			}
 		}
 	},
-	onDependencyChange: function(ev, newVal, oldVal){
-		this.dependencyChange(ev, newVal, oldVal);
+	onDependencyChange: function(value){
+		this.dependencyChange(value);
 	},
 	update: function(batchNum){
 		if(this.needsUpdate) {
@@ -624,6 +658,100 @@ Observation.isRecording = function(){
 	var last = len && observationStack[len-1];
 	return last && (last.ignore === 0) && last;
 };
+
+
+// temporarily bind
+
+var noop = function(){};
+// A list of temporarily bound computes
+var observables;
+// Unbinds all temporarily bound computes.
+var unbindComputes = function () {
+	for (var i = 0, len = observables.length; i < len; i++) {
+		canReflect.offValue(observables[i], noop);
+	}
+	observables = null;
+};
+
+// ### temporarilyBind
+// Binds computes for a moment to cache their value and prevent re-calculating it.
+Observation.temporarilyBind = function (compute) {
+	var computeInstance = compute.computeInstance || compute;
+	canReflect.onValue(computeInstance, noop);
+	if (!observables) {
+		observables = [];
+		setTimeout(unbindComputes, 10);
+	}
+	observables.push(computeInstance);
+};
+
+
+
+
+
+// can-reflect bindings ===========
+
+var callHandlers = function(newValue){
+	this.handlers.forEach(function(handler){
+		canBatch.queue([handler, this.compute, [newValue]]);
+	}, this);
+};
+
+canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
+	if(!this.handlers) {
+		this.handlers = [];
+		//!steal-remove-start
+		if(this.compute.updater) {
+			console.warn("can-observation bound to with an existing handler");
+		}
+		//!steal-remove-end
+		this.compute.updater = callHandlers.bind(this);
+		this.start();
+	}
+	this.handlers.push(handler);
+});
+
+canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(handler){
+	if (this.handlers) {
+		var index = this.handlers.indexOf(handler);
+		this.handlers.splice(index, 1);
+		if(this.handlers.length === 0) {
+			this.stop();
+		}
+	}
+});
+
+canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation.prototype.get);
+
+Observation.prototype.hasDependencies = function(){
+	return this.bound ? !isEmptyObject(this.newObserved) : undefined;
+};
+canReflect.set(Observation.prototype, canSymbol.for("can.isValueLike"), true);
+canReflect.set(Observation.prototype, canSymbol.for("can.isMapLike"), false);
+canReflect.set(Observation.prototype, canSymbol.for("can.isListLike"), false);
+
+canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
+
+canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"), function() {
+	var rets;
+	if(this.bound) {
+		rets = {};
+		canReflect.eachKey(this.newObserved || {}, function(dep) {
+			if(canReflect.isValueLike(dep.obj)) {
+				rets.valueDependencies = rets.valueDependencies || new CIDSet();
+				rets.valueDependencies.add(dep.obj);
+			} else {
+				rets.keyDependencies = rets.keyDependencies || new CIDMap();
+				if(rets.keyDependencies.get(dep.obj)) {
+					rets.keyDependencies.get(dep.obj).push(dep.event);
+				} else {
+					rets.keyDependencies.set(dep.obj, [dep.event]);
+				}
+			}
+		});
+	}
+	return rets;
+});
 
 if (namespace.Observation) {
 	throw new Error("You can't have two versions of can-observation, check your dependencies");

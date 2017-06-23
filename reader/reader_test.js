@@ -131,6 +131,7 @@ test("foundObservable called with observable object (#7)", function(){
 		},
 		addEventListener: function(){}
 	};
+
 	// must use an observation to make sure things are listening.
 	var c = new Observation(function(){
 		observeReader.read(map,observeReader.reads("isSaving"),{

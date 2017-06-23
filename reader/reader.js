@@ -1,12 +1,13 @@
 var Observation = require('can-observation');
-var assign = require('can-util/js/assign/assign');
-var CID = require('can-cid');
-var types = require('can-types');
 var dev = require('can-util/js/dev/dev');
-var canEvent = require('can-event');
 var each = require('can-util/js/each/each');
+var canSymbol = require("can-symbol");
+var canReflect = require("can-reflect");
 var isPromiseLike = require('can-util/js/is-promise-like/is-promise-like');
+var canReflectPromise = require("can-reflect-promise");
 
+var getValueSymbol = canSymbol.for("can.getValue");
+var isValueLikeSymbol = canSymbol.for("can.isValueLike");
 var observeReader;
 var isAt = function(index, reads) {
 	var prevRead = reads[index-1];
@@ -139,13 +140,13 @@ observeReader = {
 			name: "function",
 			// if this is a function before the last read and its not a constructor function
 			test: function(value, i, reads, options){
-				return types.isCallableForValue(value) && !types.isCompute(value);
+				return value && canReflect.isFunctionLike(value) && !canReflect.isConstructorLike(value);
 			},
 			read: function(value, i, reads, options, state, prev){
 				if( isAt(i, reads) ) {
 					return i === reads.length ? value.bind(prev) : value;
 				}
-				else if(options.callMethodsOnObservables && types.isMapLike(prev)) {
+				else if(options.callMethodsOnObservables && canReflect.isObservableLike(prev) && canReflect.isMapLike(prev)) {
 					return value.apply(prev, options.args || []);
 				}
 				else if ( options.isArgument && i === reads.length ) {
@@ -155,16 +156,16 @@ observeReader = {
 			}
 		},
 		{
-			name: "compute",
+			name: "isValueLike",
 			// compute value reader
-			test: function(value, i, reads, options){
-				return types.isCompute(value) && !isAt(i, reads);
+			test: function(value, i, reads, options) {
+				return value && value[getValueSymbol] && value[isValueLikeSymbol] !== false && (options.foundAt || !isAt(i, reads) );
 			},
 			read: function(value, i, reads, options, state){
 				if(options.readCompute === false && i === reads.length ) {
 					return value;
 				}
-				return value.get ? value.get() : value();
+				return canReflect.getValue(value);
 			},
 			write: function(base, newVal){
 				if(base.set) {
@@ -179,70 +180,24 @@ observeReader = {
 	propertyReaders: [
 		{
 			name: "map",
-			test: function(){
-				return types.isMapLike.apply(this, arguments) || types.isListLike.apply(this, arguments);
+			test: function(value){
+				// the first time we try reading from a promise, set it up for
+				//  special reflections.
+				if(isPromiseLike(value) || typeof value === "object" && typeof value.then === "function") {
+					canReflectPromise(value);
+				}
+
+				return canReflect.isObservableLike(value) && canReflect.isMapLike(value);
 			},
 			read: function(value, prop, index, options, state){
-				var res = value.get ? value.get(prop.key) : value.attr(prop.key);
+				var res = canReflect.getKeyValue(value, prop.key);
 				if(res !== undefined) {
 					return res;
 				} else {
 					return value[prop.key];
 				}
 			},
-			write: function(base, prop, newVal){
-				if(typeof base.set === "function") {
-					base.set(prop, newVal);
-				} else {
-					base.attr(prop, newVal);
-				}
-			}
-		},
-		// read a promise
-		// it would be good to remove this ... then
-		//
-		{
-			name: "promise",
-			test: function(value){
-				// eventually this will use canReflect.isPromiseLike
-				return isPromiseLike(value);
-			},
-			read: function(value, prop, index, options, state){
-				var observeData = value.__observeData;
-				if(!value.__observeData) {
-					observeData = value.__observeData = {
-						isPending: true,
-						state: "pending",
-						isResolved: false,
-						isRejected: false,
-						value: undefined,
-						reason: undefined
-					};
-					CID(observeData);
-					// proto based would be faster
-					assign(observeData, canEvent);
-					value.then(function(value){
-						observeData.isPending = false;
-						observeData.isResolved = true;
-						observeData.value = value;
-						observeData.state = "resolved";
-						observeData.dispatch("state",["resolved","pending"]);
-					}, function(reason){
-						observeData.isPending = false;
-						observeData.isRejected = true;
-						observeData.reason = reason;
-						observeData.state = "rejected";
-						observeData.dispatch("state",["rejected","pending"]);
-
-						//!steal-remove-start
-						dev.error("Failed promise:", reason);
-						//!steal-remove-end
-					});
-				}
-
-				Observation.add(observeData,"state");
-				return prop.key in observeData ? observeData[prop.key] : value[prop.key];
-			}
+			write: canReflect.setKeyValue
 		},
 
 		// read a normal object
@@ -250,7 +205,7 @@ observeReader = {
 			name: "object",
 			// this is the default
 			test: function(){return true;},
-			read: function(value, prop){
+			read: function(value, prop, i, options){
 				if(value == null) {
 					return undefined;
 				} else {
@@ -260,6 +215,7 @@ observeReader = {
 						}
 						// TODO: remove in 3.0.  This is for backwards compat with @key and @index.
 						else if( prop.at && specialRead[prop.key] && ( ("@"+prop.key) in value)) {
+							options.foundAt = true;
 							//!steal-remove-start
 							dev.warn("Use %"+prop.key+" in place of @"+prop.key+".");
 
@@ -315,6 +271,9 @@ observeReader = {
 	write: function(parent, key, value, options) {
 		var keys = typeof key === "string" ? observeReader.reads(key) : key;
 		var last;
+
+		options = options || {};
+
 		if(keys.length > 1) {
 			last = keys.pop();
 			parent = observeReader.read(parent, keys, options).value;
@@ -325,10 +284,10 @@ observeReader = {
 		// here's where we need to figure out the best way to write
 
 		// if property being set points at a compute, set the compute
-		if( observeReader.valueReadersMap.compute.test(parent[last.key], keys.length - 1, keys, options) ) {
-			observeReader.valueReadersMap.compute.write(parent[last.key], value, options);
+		if( observeReader.valueReadersMap.isValueLike.test(parent[last.key], keys.length - 1, keys, options) ) {
+			observeReader.valueReadersMap.isValueLike.write(parent[last.key], value, options);
 		} else {
-			if(observeReader.valueReadersMap.compute.test(parent, keys.length - 1, keys, options) ) {
+			if(observeReader.valueReadersMap.isValueLike.test(parent, keys.length - 1, keys, options) ) {
 				parent = parent();
 			}
 			if(observeReader.propertyReadersMap.map.test(parent)) {
@@ -336,6 +295,9 @@ observeReader = {
 			}
 			else if(observeReader.propertyReadersMap.object.test(parent)) {
 				observeReader.propertyReadersMap.object.write(parent, last.key, value, options);
+				if(options.observation) {
+					options.observation.update();
+				}
 			}
 		}
 	}

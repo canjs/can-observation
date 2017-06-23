@@ -3,6 +3,8 @@ require("./reader/reader_test");
 var simple = require("./test/simple");
 var simpleObservable = simple.observable;
 var simpleCompute = simple.compute;
+var reflectiveValue = simple.reflectiveValue;
+var reflectiveObservable = simple.reflectiveObservable;
 
 var Observation = require('can-observation');
 var QUnit = require('steal-qunit');
@@ -13,6 +15,8 @@ var canEvent = require('can-event');
 var canBatch = require("can-event/batch/batch");
 var eventAsync = require("can-event/async/async");
 var clone = require("steal-clone");
+var canReflect = require("can-reflect");
+var canSymbol = require("can-symbol");
 
 QUnit.module('can-observation',{
 	setup: function(){
@@ -402,4 +406,171 @@ QUnit.test('should throw if can-namespace.Observation is already defined', funct
 		ok(errMsg.indexOf('can-observation') >= 0, 'should throw an error about can-observation');
 		start();
 	});
+});
+
+
+QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(){
+	var obs1 = assign({prop1: 1}, canEvent);
+    CID(obs1);
+    var obs2 = assign({prop2: 2}, canEvent);
+    CID(obs2);
+
+	var observation = new Observation(function() {
+
+		Observation.add(obs1, "prop1");
+		Observation.add(obs2, "prop2");
+		return obs1.prop1 + obs2.prop2;
+	});
+
+	QUnit.ok(canReflect.isValueLike(observation), "it is value like!");
+
+	QUnit.equal(canReflect.getValue(observation), 3, "get unbound");
+	QUnit.equal(canReflect.valueHasDependencies(observation), undefined, "valueHasDependencies undef'd before start");
+
+	var stop = observation.stop;
+	observation.stop = function(){
+		QUnit.ok(true, "observation stopped");
+		return stop.apply(this, arguments);
+	};
+	// we shouldn't have to call start
+	//observation.start();
+
+	var handler = function(newValue){
+		QUnit.equal(newValue, 30, "observed new value");
+
+		canReflect.offValue(observation, handler);
+
+	};
+
+	canReflect.onValue(observation, handler);
+	QUnit.equal(canReflect.getValue(observation), 3, "get bound");
+	QUnit.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies true after start");
+	canBatch.start();
+	obs1.prop1 = 10;
+	obs2.prop2 = 20;
+	obs1.dispatch("prop1");
+	obs2.dispatch("prop2");
+	canBatch.stop();
+
+	QUnit.equal(canReflect.getValue(observation), 30, "get bound");
+
+});
+
+QUnit.test("should not throw if offValue is called without calling onValue" , function() {
+	var noop = function() {};
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+
+	try {
+		canReflect.offValue(observation, noop);
+		QUnit.ok(true, "should not throw");
+	} catch(e) {
+		QUnit.ok(false, e);
+	}
+});
+
+QUnit.test("getValueDependencies work with can-reflect", function() {
+
+	var obs1 = assign({prop1: 1}, canEvent);
+    CID(obs1);
+    var obs2 = function() {
+			return 2;
+    };
+    obs2[canSymbol.for("can.onValue")] = function() {};
+    obs2[canSymbol.for("can.offValue")] = function() {};
+    // Ensure that obs2 is value-like
+    obs2[canSymbol.for("can.getValue")] = function() {
+			return this();
+    };
+
+	var observation = new Observation(function() {
+
+		Observation.add(obs1, "prop1");
+		Observation.add(obs2);
+		return obs1.prop1 + obs2();
+	});
+
+	var deps = canReflect.getValueDependencies(observation);
+	QUnit.equal(deps, undefined, "getValueDependencies undefined for unstarted observation");
+
+	observation.start();
+	deps = canReflect.getValueDependencies(observation);
+	QUnit.ok(
+		deps.keyDependencies.has(obs1),
+		"getValueDependencies -- key deps"
+	);
+	QUnit.ok(
+		deps.valueDependencies.has(obs2),
+		"getValueDependencies -- value deps"
+	);
+
+});
+
+QUnit.test("Observation can listen to something decorated with onValue and offValue", function(){
+	var v1 = reflectiveValue(1);
+	var v2 = reflectiveValue(2);
+
+	var o = new Observation(function(){
+		return v1() + v2();
+	});
+
+	canReflect.onValue(o, function(){});
+
+	QUnit.equal( canReflect.getValue(o), 3);
+
+	canBatch.start();
+	v1(10);
+	v2(20);
+	canBatch.stop();
+
+	QUnit.equal( canReflect.getValue(o), 30);
+});
+
+
+QUnit.test("Observation can listen to something decorated with onValue and offValue", function(){
+	var v1 = reflectiveObservable(1);
+	var v2 = reflectiveObservable(2);
+
+	var o = new Observation(function(){
+		return v1.get() + v2.get();
+	});
+
+	canReflect.onValue(o, function(){});
+
+	QUnit.equal( canReflect.getValue(o), 3);
+
+	canBatch.start();
+	v1.set(10);
+	v2.set(20);
+	canBatch.stop();
+
+	QUnit.equal( canReflect.getValue(o), 30);
+});
+
+QUnit.test("Observation can itself be observable", function(){
+	var v1 = reflectiveObservable(1);
+	var v2 = reflectiveObservable(2);
+
+	var oA = new Observation(function(){
+		return v1.get() + v2.get();
+	});
+	var oB = new Observation(function(){
+		return oA.get() * 3;
+	});
+
+	canReflect.onValue(oB, function(){
+		QUnit.ok(canBatch.batchNum, "this was fired in a batch");
+	});
+
+
+	QUnit.equal( canReflect.getValue(oB), 9);
+
+	canBatch.start();
+	v1.set(10);
+	v2.set(20);
+	canBatch.stop();
+
+	QUnit.equal( canReflect.getValue(oB), 90);
+	QUnit.ok(oA.bound, "bound on oA");
 });
