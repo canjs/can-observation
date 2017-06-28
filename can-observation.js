@@ -693,7 +693,7 @@ Observation.temporarilyBind = function (compute) {
 
 var callHandlers = function(newValue){
 	this.handlers.forEach(function(handler){
-		canBatch.queue([handler, this.compute, [newValue]]);
+		handler.call(this.compute, newValue);
 	}, this);
 };
 

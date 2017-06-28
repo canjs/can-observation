@@ -560,7 +560,7 @@ QUnit.test("Observation can itself be observable", function(){
 	});
 
 	canReflect.onValue(oB, function(){
-		QUnit.ok(canBatch.batchNum, "this was fired in a batch");
+		QUnit.ok(true, "this was fired in a batch");
 	});
 
 
