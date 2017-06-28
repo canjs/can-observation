@@ -1,5 +1,4 @@
 require("./can-observation-async-test");
-require("./reader/reader_test");
 var simple = require("./test/simple");
 var simpleObservable = simple.observable;
 var simpleCompute = simple.compute;
