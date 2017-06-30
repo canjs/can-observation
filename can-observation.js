@@ -206,7 +206,7 @@ assign(Observation.prototype,{
 	dependencyChange: function(){
 		if(this.bound) {
 			// Only need to register once per batchNum
-			if(canBatch.batchNum !== this.batchNum) {
+			if(canBatch.batchNum === undefined || canBatch.batchNum !== this.batchNum) {
 				Observation.registerUpdate(this, canBatch.batchNum);
 				this.batchNum = canBatch.batchNum;
 			}
@@ -693,7 +693,7 @@ Observation.temporarilyBind = function (compute) {
 
 var callHandlers = function(newValue){
 	this.handlers.forEach(function(handler){
-		canBatch.queue([handler, this.compute, [newValue]]);
+		handler.call(this.compute, newValue);
 	}, this);
 };
 
