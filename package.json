@@ -47,7 +47,7 @@
     "bit-docs": "^0.0.7",
     "can-compute": "^3.1.0-pre.14",
     "can-define": "^1.2.0-pre.6",
-    "can-map": "^3.1.0-pre.14",
+    "can-map": "^3.3.1",
     "done-serve": "^1.2.0",
     "donejs-cli": "^1.0.1",
     "generator-donejs": "^1.0.5",
