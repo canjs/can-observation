@@ -168,7 +168,7 @@ assign(Observation.prototype,{
 		}
 
 
-		if(this.bound) {
+		if(this.bound === true) {
 			// Flush events so this compute should have been notified.
 			// But we want not only update
 			canEvent.flush();
@@ -176,7 +176,7 @@ assign(Observation.prototype,{
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
 			// the outer compute a value, we've had a change to update.;
-			if(remaining.updates) {
+			if(remaining.updates > 0) {
 				Observation.updateChildrenAndSelf(this);
 			}
 
@@ -204,7 +204,7 @@ assign(Observation.prototype,{
 		}
 	},
 	dependencyChange: function(){
-		if(this.bound) {
+		if(this.bound === true) {
 			// Only need to register once per batchNum
 			if(canBatch.batchNum === undefined || canBatch.batchNum !== this.batchNum) {
 				Observation.registerUpdate(this, canBatch.batchNum);
@@ -216,11 +216,11 @@ assign(Observation.prototype,{
 		this.dependencyChange(value);
 	},
 	update: function(batchNum){
-		if(this.needsUpdate) {
+		if(this.needsUpdate === true) {
 			remaining.updates--;
 		}
 		this.needsUpdate = false;
-		if(this.bound) {
+		if(this.bound === true) {
 			// Keep the old value.
 			var oldValue = this.value;
 			this.oldValue = null;
@@ -278,12 +278,12 @@ assign(Observation.prototype,{
 			if(!oldObserved[name]) {
 				this.addEdge(obEv);
 			} else {
-				oldObserved[name] = null;
+				oldObserved[name] = undefined;
 			}
 		}
 		for (name in oldObserved) {
 			obEv = oldObserved[name];
-			if(obEv) {
+			if(obEv !== undefined) {
 				this.removeEdge(obEv);
 			}
 		}
@@ -363,7 +363,7 @@ var updateUpdateOrder = function(observation){
 
 Observation.registerUpdate = function(observation, batchNum){
 	// mark as needing an update
-	if( observation.needsUpdate ) {
+	if( observation.needsUpdate === true ) {
 		return;
 	}
 	remaining.updates++;
@@ -386,7 +386,7 @@ var afterCallbacks = [];
 /* jshint maxdepth:7*/
 Observation.updateAndNotify = function(ev, batchNum){
 	currentBatchNum = batchNum;
-	if(isUpdating){
+	if(isUpdating === true){
 		// only allow access at one time to this method.
 		// This is because when calling .update ... that compute should be only able
 		// to cause updates to other computes it directly reads.  It's possible that
@@ -400,7 +400,7 @@ Observation.updateAndNotify = function(ev, batchNum){
 		if( curPrimaryDepth <= maxPrimaryDepth ) {
 			var primary = updateOrder[curPrimaryDepth];
 			var lastUpdate = primary && primary.pop();
-			if(lastUpdate) {
+			if(lastUpdate !== undefined) {
 				lastUpdate.update(currentBatchNum);
 			} else {
 				curPrimaryDepth++;
@@ -426,7 +426,7 @@ Observation.afterUpdateAndNotify = function(callback){
 		// here we know that the events have been fired, everything should
 		// be notified. Now we have to wait until all computes have
 		// finished firing.
-		if(isUpdating) {
+		if(isUpdating === true) {
 			afterCallbacks.push(callback);
 		} else {
 			callback();
@@ -440,10 +440,10 @@ Observation.afterUpdateAndNotify = function(callback){
 // If there is, we'll update every parent on the way to ourselves.
 Observation.updateChildrenAndSelf = function(observation){
 	// check if there's children that .needsUpdate
-	if(observation.needsUpdate) {
+	if(observation.needsUpdate === true) {
 		return Observation.unregisterAndUpdate(observation);
 	}
-	var childHasChanged;
+	var childHasChanged = false;
 	for(var prop in observation.newObserved) {
 		if(observation.newObserved[prop].obj.observation) {
 			if( Observation.updateChildrenAndSelf(observation.newObserved[prop].obj.observation) ) {
@@ -451,7 +451,7 @@ Observation.updateChildrenAndSelf = function(observation){
 			}
 		}
 	}
-	if(childHasChanged) {
+	if(childHasChanged === true) {
 		return observation.update(currentBatchNum);
 	}
 };
@@ -462,7 +462,7 @@ Observation.updateChildrenAndSelf = function(observation){
 Observation.unregisterAndUpdate = function(observation){
 	var primaryDepth = observation.getPrimaryDepth();
 	var primary = updateOrder[primaryDepth];
-	if(primary) {
+	if(primary !== undefined) {
 
 		var index = primary.indexOf(observation);
 		if(index !== -1) {
@@ -497,11 +497,11 @@ Observation.unregisterAndUpdate = function(observation){
  */
 Observation.add = function (obj, event) {
 	var top = observationStack[observationStack.length-1];
-	if (top && !top.ignore) {
+	if (top !== undefined && !top.ignore) {
 		var evStr = event + "",
 			name = obj._cid + '|' + evStr;
 
-		if(top.traps) {
+		if(top.traps !== undefined) {
 			top.traps.push({obj: obj, event: evStr, name: name});
 		}
 		else {
@@ -536,15 +536,15 @@ Observation.addAll = function(observes){
 	// a bit more optimized so we don't have to repeat everything in
 	// Observation.add
 	var top = observationStack[observationStack.length-1];
-	if (top) {
-		if(top.traps) {
+	if (top !== undefined) {
+		if(top.traps !== undefined) {
 			top.traps.push.apply(top.traps, observes);
 		} else {
 			for(var i =0, len = observes.length; i < len; i++) {
 				var trap = observes[i],
 					name = trap.name;
 
-				if(!top.newObserved[name]) {
+				if(top.newObserved[name] === undefined) {
 					top.newObserved[name] = trap;
 				}
 			}
@@ -578,7 +578,7 @@ Observation.addAll = function(observes){
  */
 Observation.ignore = function(fn){
 	return function(){
-		if (observationStack.length) {
+		if (observationStack.length > 0) {
 			var top = observationStack[observationStack.length-1];
 			top.ignore++;
 			var res = fn.apply(this, arguments);
@@ -611,7 +611,7 @@ Observation.ignore = function(fn){
  * @return {can-observation.getTrapped} A function to get the trapped observations.
  */
 Observation.trap = function(){
-	if (observationStack.length) {
+	if (observationStack.length > 0) {
 		var top = observationStack[observationStack.length-1];
 		var oldTraps = top.traps;
 		var traps = top.traps = [];
@@ -635,7 +635,7 @@ Observation.trap = function(){
  */
 
 Observation.trapsCount = function(){
-	if (observationStack.length) {
+	if (observationStack.length > 0) {
 		var top = observationStack[observationStack.length-1];
 		return top.traps.length;
 	} else {
@@ -655,7 +655,7 @@ Observation.trapsCount = function(){
  */
 Observation.isRecording = function(){
 	var len = observationStack.length;
-	var last = len && observationStack[len-1];
+	var last = len > 0 && observationStack[len-1];
 	return last && (last.ignore === 0) && last;
 };
 
@@ -734,7 +734,7 @@ canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"),
 
 canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"), function() {
 	var rets;
-	if(this.bound) {
+	if(this.bound === true) {
 		rets = {};
 		canReflect.eachKey(this.newObserved || {}, function(dep) {
 			if(canReflect.isValueLike(dep.obj)) {
