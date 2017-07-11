@@ -573,3 +573,17 @@ QUnit.test("Observation can itself be observable", function(){
 	QUnit.equal( canReflect.getValue(oB), 90);
 	QUnit.ok(oA.bound, "bound on oA");
 });
+
+QUnit.test("should be able to bind, unbind, and re-bind to an observation", function() {
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+
+	var handler = function() {};
+
+	canReflect.onValue(observation, handler);
+	canReflect.offValue(observation, handler);
+	canReflect.onValue(observation, handler);
+
+	QUnit.ok(observation.bound, "observation is bound");
+});

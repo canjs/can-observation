@@ -686,9 +686,6 @@ Observation.temporarilyBind = function (compute) {
 };
 
 
-
-
-
 // can-reflect bindings ===========
 
 var callHandlers = function(newValue){
@@ -706,8 +703,12 @@ canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(han
 		}
 		//!steal-remove-end
 		this.compute.updater = callHandlers.bind(this);
+	}
+
+	if(!this.handlers.length) {
 		this.start();
 	}
+
 	this.handlers.push(handler);
 });
 
