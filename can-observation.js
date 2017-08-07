@@ -113,7 +113,7 @@ function Observation(func, context, compute){
 		observation.dependencyChange(this, value, legacyValue);
 	};
 	this.ignore = 0;
-	this.needsUpdate= false;
+	this.needsUpdate = false;
 	this.handlers = null;
 	CID(this);
 }
@@ -656,7 +656,7 @@ Observation.trapsCount = function(){
 Observation.isRecording = function(){
 	var len = observationStack.length;
 	var last = len > 0 && observationStack[len-1];
-	return last && (last.ignore === 0) && last;
+	return last && (last.ignore === 0);
 };
 
 
