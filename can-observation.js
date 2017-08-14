@@ -699,7 +699,7 @@ canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(han
 		this.handlers = [];
 		//!steal-remove-start
 		if(this.compute.updater) {
-			console.warn("can-observation bound to with an existing handler");
+			canLog.warn("can-observation bound to with an existing handler");
 		}
 		//!steal-remove-end
 		this.compute.updater = callHandlers.bind(this);
