@@ -108,7 +108,6 @@ function Observation(func, context, compute){
 	this.context = context;
 	this.compute = compute && (compute.updater || ("isObservable" in compute)) ? compute : {updater: compute};
 	this.isObservable = typeof compute === "object" ? compute.isObservable : true;
-	this.isProactivelyCacheable = typeof compute === "object" && "isProactivelyCacheable" in compute ? compute.isProactivelyCacheable : this.isObservable;
 	var observation = this;
 	this.onDependencyChange = function(value, legacyValue){
 		observation.dependencyChange(this, value, legacyValue);
@@ -148,27 +147,26 @@ var remaining = {updates: 0, notifications: 0};
 // expose the remaining state
 Observation.remaining = remaining;
 
-assign(Observation.prototype, {
+assign(Observation.prototype,{
 	// something is reading the value of this compute
 	get: function(){
-
-		var isRecording = Observation.isRecording();
 
 		// If an external observation is tracking observables and
 		// this compute can be listened to by "function" based computes ....
 		// This doesn't happen with observations within computes
-		if (this.isObservable && isRecording) {
+		if( this.isObservable && Observation.isRecording() ) {
+
+
 			// ... tell the tracking compute to listen to change on this observation.
 			Observation.add(this);
-		}
-
-		if (this.isProactivelyCacheable && isRecording) {
 			// ... if we are not bound, we should bind so that
 			// we don't have to re-read to get the value of this compute.
 			if (!this.bound) {
 				Observation.temporarilyBind(this);
 			}
+
 		}
+
 
 		if(this.bound === true) {
 			// Flush events so this compute should have been notified.

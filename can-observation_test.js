@@ -17,13 +17,13 @@ var clone = require("steal-clone");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 
-var onValueSymbol = canSymbol.for("can.onValue");
-
 QUnit.module('can-observation',{
 	setup: function(){
 		eventAsync.sync();
 	}
 });
+
+
 
 QUnit.test('nested traps are reset onto parent traps', function() {
     var obs1 = assign({}, canEvent);
@@ -551,10 +551,10 @@ QUnit.test("Observation can itself be observable", function(){
 	var v1 = reflectiveObservable(1);
 	var v2 = reflectiveObservable(2);
 
-	var oA = new Observation(function oA(){
+	var oA = new Observation(function(){
 		return v1.get() + v2.get();
 	});
-	var oB = new Observation(function oB(){
+	var oB = new Observation(function(){
 		return oA.get() * 3;
 	});
 
@@ -562,106 +562,16 @@ QUnit.test("Observation can itself be observable", function(){
 		QUnit.ok(true, "this was fired in a batch");
 	});
 
-	canBatch.start();
-	v1.set(10);
-	v2.set(20);
-	canBatch.stop();
 
-	QUnit.equal( canReflect.getValue(oA), 30, 'oA updated');
-	QUnit.equal( canReflect.getValue(oB), 90, 'oB updated');
-	QUnit.ok(oA.bound, "bound on oA");
-});
-
-QUnit.test("Observation can be not observable and be proactively cacheable", function(){
-	var v1 = reflectiveObservable(1);
-	var v2 = reflectiveObservable(2);
-
-	var oA = new Observation(function oA(){
-		return v1.get() + v2.get();
-	}, null, {
-		isObservable: false,
-		isProactivelyCacheable: true
-	});
-	oA[onValueSymbol] = function() {
-		QUnit.ok(true, 'oA onValue should be called');
-	};
-
-	var origStack = Observation.observationStack;
-	Observation.observationStack.push({ ignore: 0, newObserved: {} });
-	QUnit.equal( canReflect.getValue(oA), 3);
-	Observation.observationStack = origStack;
-});
-
-QUnit.test("Observation can be not observable and not proactively cacheable", function(){
-	var v1 = reflectiveObservable(1);
-	var v2 = reflectiveObservable(2);
-
-	var oA = new Observation(function oA(){
-		return v1.get() + v2.get();
-	}, null, {
-		isObservable: false,
-		isProactivelyCacheable: false
-	});
-	oA[onValueSymbol] = function() {
-		QUnit.ok(false, 'oA onValue should not be called');
-	};
-
-	var origStack = Observation.observationStack;
-	Observation.observationStack.push({ ignore: 0, newObserved: {} });
-	QUnit.equal( canReflect.getValue(oA), 3);
-	Observation.observationStack = origStack;
-});
-
-QUnit.test("Observation can be observable and not proactively cacheable", function(){
-	QUnit.expect(5);
-	var v1 = reflectiveObservable(1);
-	var v2 = reflectiveObservable(2);
-
-	var oA = new Observation(function oA(){
-		return v1.get() + v2.get();
-	}, null, {
-		isObservable: true,
-		isProactivelyCacheable: false
-	});
-	var origOnValue = oA[onValueSymbol];
-	oA[onValueSymbol] = function() {
-		QUnit.ok(true, 'oA onValue should be called once');
-		origOnValue.apply(this, arguments);
-	};
-
-	var oB = new Observation(function oB(){
-		return oA.get() * 3;
-	});
-
-	canReflect.onValue(oB, function(){
-		QUnit.ok(true, "this was fired in a batch");
-	});
+	QUnit.equal( canReflect.getValue(oB), 9);
 
 	canBatch.start();
 	v1.set(10);
 	v2.set(20);
 	canBatch.stop();
 
-	QUnit.equal( canReflect.getValue(oA), 30, 'oA updated');
-	QUnit.equal( canReflect.getValue(oB), 90, 'oB updated');
+	QUnit.equal( canReflect.getValue(oB), 90);
 	QUnit.ok(oA.bound, "bound on oA");
-});
-
-QUnit.test("compute.isProactivelyCacheable", function() {
-	var obs = new Observation(function() {});
-	QUnit.ok(obs.isProactivelyCacheable, 'should be true if compute is null (for backwards compatibility)');
-
-	obs = new Observation(function() {}, null, { isObservable: true });
-	QUnit.ok(obs.isProactivelyCacheable, 'should be true if isObservable is set to true (for backwards compatibility)');
-
-	obs = new Observation(function() {}, null, { isObservable: false });
-	QUnit.ok(!obs.isProactivelyCacheable, 'should be false if isObservable is set to false (for backwards compatibility)');
-
-	obs = new Observation(function() {}, null, { isObservable: false, isProactivelyCacheable: true });
-	QUnit.ok(obs.isProactivelyCacheable, 'should be true if isObservable is set to false and isProactivelyCacheable is explicitly set to true');
-
-	obs = new Observation(function() {}, null, { isObservable: false, isProactivelyCacheable: false });
-	QUnit.ok(!obs.isProactivelyCacheable, 'should be false if isObservable is set to false and isProactivelyCacheable is explicitly set to false');
 });
 
 QUnit.test("should be able to bind, unbind, and re-bind to an observation", function() {
