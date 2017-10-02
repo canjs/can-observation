@@ -115,7 +115,7 @@ var reflectiveCompute = function(getter, name){
 	return fn;
 };
 var reflectiveValue = function(value){
-	var handlers = new KeyTree(Object,Array);
+	var handlers = new KeyTree([Object,Array]);
 
 	var fn = function(newValue){
 		if(arguments.length) {
@@ -132,7 +132,6 @@ var reflectiveValue = function(value){
 	CID(fn);
 	canReflect.set(fn, canSymbol.for("can.onValue"), function(handler, type){
 		handlers.add([type|| "mutate", handler])
-		handlers.push(handler);
 	});
 	canReflect.set(fn, canSymbol.for("can.offValue"), function(handler, type){
 		handlers.delete([type|| "mutate", handler])
@@ -153,7 +152,7 @@ var reflectiveObservable = function(value){
 			});
 		},
 		value: value,
-		handlers: new KeyTree(Object, Object, Array)
+		handlers: new KeyTree([Object, Object, Array])
 	};
 	canReflect.set(obs, canSymbol.for("can.onKeyValue"), function(eventName, handler, queue){
 		this.handlers.add([eventName, queue|| "mutate", handler]);

@@ -352,6 +352,13 @@ Observation.updateChildrenAndSelf = function(observation){
 	}
 };
 
+Observation.afterUpdateAndNotify = function(callback){
+	queues.mutateQueue.enqueue(function afterPreviousEvents(){
+        queues.mutateQueue.enqueue(callback);
+    });
+    queues.flush();
+};
+
 
 
 

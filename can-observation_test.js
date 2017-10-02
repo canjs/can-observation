@@ -233,7 +233,7 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 	/*
 	 computeThatGoesSideways
      - pushSidewaysCompute
-	 - root 
+	 - root
 
 	 sideCompute
 	 - root
@@ -242,6 +242,7 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 	 */
 	var root = simpleObservable('a');
 	var unchangingRoot = simpleObservable('X');
+	// this gets emptied out again
 	var order = [];
 
 	// A compute that will flush the event queue.
@@ -260,7 +261,6 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 	dummyObject.on("dummyEvent", function dummyEvenHandler(){});
 
 	var computeThatGoesSideways = simpleCompute(function computeThatGoesSidewaysHandler(){
-
 		order.push('computeThatGoesSideways start');
 
 		// Flush the event queue
@@ -282,55 +282,9 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 	order = [];
 	root.set("b");
 
-	QUnit.deepEqual(order, ['computeThatGoesSideways start', 'computeThatGoesSideways finish', 'side compute']);
+	QUnit.deepEqual(order, ['side compute','computeThatGoesSideways start', 'computeThatGoesSideways finish']);
 });
 
-
-QUnit.test("flush can mean  (canjs/canjs#2151)", function(){
-	var root = simpleObservable('a');
-	var unchangingRoot = simpleObservable('X');
-	var order = [];
-
-	// A compute that will flush the event queue.
-	var pushSidewaysCompute = simpleCompute(function(){
-		return unchangingRoot.get();
-	},'baseCompute');
-
-	// A compute that should evaluate after computeThatGoesSideways
-	var sideCompute = simpleCompute(function(){
-		order.push('side compute');
-		pushSidewaysCompute();
-		return root.get();
-	},'sideCompute');
-
-	var dummyObject = assign({}, canEvent);
-	dummyObject.on("dummyEvent", function(){});
-
-	var computeThatGoesSideways = simpleCompute(function(){
-
-		order.push('computeThatGoesSideways start');
-
-		// Flush the event queue
-		pushSidewaysCompute();
-
-		// Dispatch a new event, which creates a new queue.
-		// This should not cause `sideCompute` to re-run.
-		dummyObject.dispatch("dummyEvent");
-
-		order.push('computeThatGoesSideways finish');
-		return root.get();
-	},"computeThatGoesSideways");
-
-	sideCompute.addEventListener("change", function(ev, newVal){});
-
-	computeThatGoesSideways.addEventListener("change", function(ev, newVal){});
-
-
-	order = [];
-	root.set("b");
-
-	QUnit.deepEqual(order, ['computeThatGoesSideways start', 'computeThatGoesSideways finish', 'side compute']);
-});
 
 QUnit.test("it's possible canBatch.after is called before observations are updated", 4, function(){
 	var afterCalled, afterUpdateAndNotifyCalled;
@@ -347,11 +301,11 @@ QUnit.test("it's possible canBatch.after is called before observations are updat
 
 
 	leftCompute.addEventListener("change", function(){
-		canBatch.start();
+		eventQueue.start();
 
 		rootB.set("B");
 
-		canBatch.after(function(){
+		eventQueue.after(function(){
 			afterCalled = true;
 			QUnit.ok(true, "after is called");
 		});
@@ -360,14 +314,14 @@ QUnit.test("it's possible canBatch.after is called before observations are updat
 			QUnit.ok(true, "afterUpdateAndNotify is called");
 		});
 
-		canBatch.stop();
+		eventQueue.stop();
 
 		// this is the same as reading a compute
-		canBatch.flush();
+		eventQueue.flush();
 	});
 
 	rightCompute.addEventListener("change", function(){
-		QUnit.ok(afterCalled, "after can be called");
+		QUnit.ok(afterCalled, "after should be called");
 		QUnit.ok(!afterUpdateAndNotifyCalled, "afterUpdateAndNotifyCalled not called yet");
 	});
 
@@ -431,13 +385,13 @@ QUnit.test('should throw if can-namespace.Observation is already defined', funct
 
 
 QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(){
-	var obs1 = assign({prop1: 1}, canEvent);
+	queues.log();
+	var obs1 = assign({prop1: 1}, eventQueue);
     CID(obs1);
-    var obs2 = assign({prop2: 2}, canEvent);
+    var obs2 = assign({prop2: 2}, eventQueue);
     CID(obs2);
 
-	var observation = new Observation(function() {
-
+	var observation = new Observation(function observationEval() {
 		Observation.add(obs1, "prop1");
 		Observation.add(obs2, "prop2");
 		return obs1.prop1 + obs2.prop2;
@@ -456,24 +410,23 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	// we shouldn't have to call start
 	//observation.start();
 
-	var handler = function(newValue){
+	function handler(newValue){
 		QUnit.equal(newValue, 30, "observed new value");
 
 		canReflect.offValue(observation, handler);
-
-	};
+	}
 
 	canReflect.onValue(observation, handler);
-	QUnit.equal(canReflect.getValue(observation), 3, "get bound");
+	QUnit.equal(canReflect.getValue(observation), 3, "get bound first");
 	QUnit.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies true after start");
-	canBatch.start();
+	eventQueue.start();
 	obs1.prop1 = 10;
 	obs2.prop2 = 20;
 	obs1.dispatch("prop1");
 	obs2.dispatch("prop2");
-	canBatch.stop();
+	eventQueue.stop();
 
-	QUnit.equal(canReflect.getValue(observation), 30, "get bound");
+	QUnit.equal(canReflect.getValue(observation), 30, "get bound second");
 
 });
 
@@ -493,7 +446,7 @@ QUnit.test("should not throw if offValue is called without calling onValue" , fu
 
 QUnit.test("getValueDependencies work with can-reflect", function() {
 
-	var obs1 = assign({prop1: 1}, canEvent);
+	var obs1 = assign({prop1: 1}, eventQueue);
     CID(obs1);
     var obs2 = function() {
 			return 2;
@@ -540,10 +493,10 @@ QUnit.test("Observation can listen to something decorated with onValue and offVa
 
 	QUnit.equal( canReflect.getValue(o), 3);
 
-	canBatch.start();
+	eventQueue.start();
 	v1(10);
 	v2(20);
-	canBatch.stop();
+	eventQueue.stop();
 
 	QUnit.equal( canReflect.getValue(o), 30);
 });
@@ -561,10 +514,10 @@ QUnit.test("Observation can listen to something decorated with onValue and offVa
 
 	QUnit.equal( canReflect.getValue(o), 3);
 
-	canBatch.start();
+	eventQueue.start();
 	v1.set(10);
 	v2.set(20);
-	canBatch.stop();
+	eventQueue.stop();
 
 	QUnit.equal( canReflect.getValue(o), 30);
 });
@@ -587,10 +540,10 @@ QUnit.test("Observation can itself be observable", function(){
 
 	QUnit.equal( canReflect.getValue(oB), 9);
 
-	canBatch.start();
+	eventQueue.start();
 	v1.set(10);
 	v2.set(20);
-	canBatch.stop();
+	eventQueue.stop();
 
 	QUnit.equal( canReflect.getValue(oB), 90);
 	QUnit.ok(oA.bound, "bound on oA");
