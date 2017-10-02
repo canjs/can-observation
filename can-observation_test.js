@@ -1,4 +1,4 @@
-require("./can-observation-async-test");
+// require("./can-observation-async-test");
 var simple = require("./test/simple");
 var simpleObservable = simple.observable;
 var simpleCompute = simple.compute;
@@ -10,8 +10,9 @@ var QUnit = require('steal-qunit');
 var CID = require('can-cid');
 
 var assign = require("can-util/js/assign/assign");
-var canEvent = require('can-event');
-var canBatch = require("can-event/batch/batch");
+var queues = require("can-queues");
+var eventQueue = require("can-event/queue/queue");
+
 var eventAsync = require("can-event/async/async");
 var clone = require("steal-clone");
 var canReflect = require("can-reflect");
@@ -23,22 +24,33 @@ QUnit.module('can-observation',{
 	}
 });
 
+QUnit.test("basics", function(){
+	var rootA = simpleObservable('a');
+	var rootB = simpleObservable('b');
 
+	var observation = new Observation(function(){
+		return rootA.get() + rootB.get();
+	});
+
+	canReflect.onValue(observation, function(newVal){
+		QUnit.equal(newVal, "Ab")
+	});
+
+	rootA.set("A");
+});
 
 QUnit.test('nested traps are reset onto parent traps', function() {
-    var obs1 = assign({}, canEvent);
-    CID(obs1);
-    var obs2 = assign({}, canEvent);
-    CID(obs2);
+	var obs1 = simpleObservable('a');
+	var obs2 = simpleObservable('b');
 
 	var oi = new Observation(function() {
 
 		var getObserves1 = Observation.trap();
 
-		Observation.add(obs1, "prop1");
+		Observation.add(obs1, "value");
 
 		var getObserves2 = Observation.trap();
-		Observation.add(obs2, "prop2");
+		Observation.add(obs2, "value");
 
 		var observes2 = getObserves2();
 
@@ -80,13 +92,13 @@ test("Change propagation in a batch with late bindings (#2412)", function(){
 	childA.addEventListener('change', function(ev, newVal, oldVal) {});
 
 	grandChild.addEventListener('change', function(ev, newVal, oldVal) {
-	  equal(newVal, "grandChild->childAA");
+	  equal(newVal, "grandChild->childAA", "got the right value");
 	});
 
-	canBatch.start();
+	queues.batch.start();
 	rootA.set('A');
 	rootB.set('B');
-	canBatch.stop();
+	queues.batch.stop();
 
 });
 
@@ -99,11 +111,11 @@ test("deeply nested computes that are read that don't allow deeper primary depth
 	var rootA = simpleObservable('a');
 	var rootB = simpleObservable('b');
 
-	var childA = simpleCompute(function() {
+	var childA = simpleCompute(function updateChildA() {
 		return "childA"+rootA.get();
 	},'childA');
 
-	var grandChild = simpleCompute(function() {
+	var grandChild = simpleCompute(function updateGrandChild() {
 		if(rootB.get() === 'b') {
 			return 'grandChild->b';
 		}
@@ -111,26 +123,26 @@ test("deeply nested computes that are read that don't allow deeper primary depth
 	},'grandChild');
 
 	// this should update last
-	var deepThing = simpleCompute(function(){
+	var deepThing = simpleCompute(function updateDeepThing(){
 		return rootB.get();
 	},"deepThing", 4);
 
 	var order = [];
 
-	childA.addEventListener("change", function(){});
+	childA.addEventListener("change", function childAChangeHandler(){});
 
-	deepThing.addEventListener("change", function(ev){
+	deepThing.addEventListener("change", function deepThingChangeHandler(ev){
 		order.push("deepThing");
 	});
 
-	grandChild.addEventListener("change", function(ev, newVal){
+	grandChild.addEventListener("change", function grandChildChangeHandler(ev, newVal){
 		order.push("grandChild "+newVal);
 	});
 
 
-	canBatch.start();
+	eventQueue.start();
 	rootB.set('B');
-	canBatch.stop();
+	eventQueue.stop();
 
 
 	QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
@@ -206,7 +218,7 @@ QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
 
 		// now when this gets added ... it's going to create its own
 		// batch which will call `Observation.updateAndNotify`
-		canBatch.afterPreviousEvents(function(){});
+		eventQueue.afterPreviousEvents(function(){});
 		return root.get();
 	},"afterPreviousCompute");
 
@@ -218,26 +230,36 @@ QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
 });
 
 QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
+	/*
+	 computeThatGoesSideways
+     - pushSidewaysCompute
+	 - root 
+
+	 sideCompute
+	 - root
+	 - pushSidewaysCompute
+	   - unchangingRoot
+	 */
 	var root = simpleObservable('a');
 	var unchangingRoot = simpleObservable('X');
 	var order = [];
 
 	// A compute that will flush the event queue.
-	var pushSidewaysCompute = simpleCompute(function(){
+	var pushSidewaysCompute = simpleCompute(function pushSidewaysComputeEval(){
 		return unchangingRoot.get();
 	},'baseCompute');
 
 	// A compute that should evaluate after computeThatGoesSideways
-	var sideCompute = simpleCompute(function(){
+	var sideCompute = simpleCompute(function sideComputeEval(){
 		order.push('side compute');
 		pushSidewaysCompute();
 		return root.get();
 	},'sideCompute');
 
-	var dummyObject = assign({}, canEvent);
-	dummyObject.on("dummyEvent", function(){});
+	var dummyObject = assign({}, eventQueue);
+	dummyObject.on("dummyEvent", function dummyEvenHandler(){});
 
-	var computeThatGoesSideways = simpleCompute(function(){
+	var computeThatGoesSideways = simpleCompute(function computeThatGoesSidewaysHandler(){
 
 		order.push('computeThatGoesSideways start');
 
@@ -252,9 +274,9 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 		return root.get();
 	},"computeThatGoesSideways");
 
-	sideCompute.addEventListener("change", function(ev, newVal){});
+	sideCompute.addEventListener("change", function sideComputeHandler(ev, newVal){});
 
-	computeThatGoesSideways.addEventListener("change", function(ev, newVal){});
+	computeThatGoesSideways.addEventListener("change", function computeThatGoesSidewaysHandler(ev, newVal){});
 
 
 	order = [];

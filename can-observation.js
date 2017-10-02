@@ -14,8 +14,6 @@
 // - can.__notObserve - Returns a function that can not be observed.
 require('can-event');
 
-var canEvent = require('can-event');
-var canBatch = require('can-event/batch/batch');
 var assign = require('can-util/js/assign/assign');
 var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
 var namespace = require('can-namespace');
@@ -25,6 +23,8 @@ var canSymbol = require('can-symbol');
 var CID = require("can-cid");
 var CIDMap = require("can-util/js/cid-map/cid-map");
 var CIDSet = require("can-util/js/cid-set/cid-set");
+var queues = require("can-queues");
+var KeyTree = require("can-key-tree");
 
 /**
  * @module {constructor} can-observation
@@ -102,6 +102,7 @@ var CIDSet = require("can-util/js/cid-set/cid-set");
 
 
 function Observation(func, context, compute){
+	CID(this);
 	this.newObserved = {};
 	this.oldObserved = null;
 	this.func = func;
@@ -109,13 +110,22 @@ function Observation(func, context, compute){
 	this.compute = compute && (compute.updater || ("isObservable" in compute)) ? compute : {updater: compute};
 	this.isObservable = typeof compute === "object" ? compute.isObservable : true;
 	var observation = this;
-	this.onDependencyChange = function(value, legacyValue){
+	this.onDependencyChange = function dependencyChange(value, legacyValue){
 		observation.dependencyChange(this, value, legacyValue);
 	};
+
+	this.update = this.update.bind(this);
+	//!steal-remove-start
+	Object.defineProperty(this.onDependencyChange,"name",{
+		value: "observation<"+this._cid+">.onDependencyChange"
+	});
+	Object.defineProperty(this.update,"name",{
+		value: "observation<"+this._cid+">.update"
+	});
+	//!steal-remove-end
 	this.ignore = 0;
 	this.needsUpdate = false;
 	this.handlers = null;
-	CID(this);
 }
 
 // ### observationStack
@@ -169,14 +179,16 @@ assign(Observation.prototype,{
 
 
 		if(this.bound === true) {
-			// Flush events so this compute should have been notified.
-			// But we want not only update
-			canEvent.flush();
+
+			// all computes should be notified and in the derive queue
+			// so there's no need to flush anymore
+			// canEvent.flush();
+
 			// we've already got a value.  However, it might be possible that
 			// something else is going to read this that has a lower "depth".
 			// We might be updating, so we want to make sure that before we give
 			// the outer compute a value, we've had a change to update.;
-			if(remaining.updates > 0) {
+			if(queues.deriveQueue.tasksRemainingCount > 0) {
 				Observation.updateChildrenAndSelf(this);
 			}
 
@@ -191,35 +203,29 @@ assign(Observation.prototype,{
 	},
 	addEdge: function(objEv){
 		if(objEv.event === "undefined") {
-			canReflect.onValue(objEv.obj, this.onDependencyChange);
+			canReflect.onValue(objEv.obj, this.onDependencyChange,"notify");
 		} else {
-			canReflect.onKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
+			canReflect.onKeyValue(objEv.obj, objEv.event, this.onDependencyChange,"notify");
 		}
 	},
 	removeEdge: function(objEv){
 		if(objEv.event === "undefined") {
-			canReflect.offValue(objEv.obj, this.onDependencyChange);
+			canReflect.offValue(objEv.obj, this.onDependencyChange,"notify");
 		} else {
-			canReflect.offKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
+			canReflect.offKeyValue(objEv.obj, objEv.event, this.onDependencyChange,"notify");
 		}
 	},
 	dependencyChange: function(){
 		if(this.bound === true) {
-			// Only need to register once per batchNum
-			if(canBatch.batchNum === undefined || canBatch.batchNum !== this.batchNum) {
-				Observation.registerUpdate(this, canBatch.batchNum);
-				this.batchNum = canBatch.batchNum;
-			}
+			queues.deriveQueue.enqueue(this.update, this, [],{
+				priority: this.getPrimaryDepth()
+			});
 		}
 	},
 	onDependencyChange: function(value){
 		this.dependencyChange(value);
 	},
 	update: function(batchNum){
-		if(this.needsUpdate === true) {
-			remaining.updates--;
-		}
-		this.needsUpdate = false;
 		if(this.bound === true) {
 			// Keep the old value.
 			var oldValue = this.value;
@@ -318,121 +324,7 @@ assign(Observation.prototype,{
 	 */
 });
 
-/**
- * @typedef {{}} can-observation.observed Observed
- * @parent can-observation.types
- *
- * @description
- *
- * An object representing an observation.
- *
- * ```js
- * { "obj": map, "event": "prop1" }
- * ```
- *
- * @option {Object} obj The observable object
- * @option {String} event The event, or more likely property, that is being observed.
- */
 
-
-var updateOrder = [],
-	// the min registered primary depth, this is also the next to be executed.
-	curPrimaryDepth = Infinity,
-	// the max registered primary depth
-	maxPrimaryDepth = 0,
-	currentBatchNum,
-	isUpdating = false;
-
-
-var updateUpdateOrder = function(observation){
-	var primaryDepth = observation.getPrimaryDepth();
-
-	if(primaryDepth < curPrimaryDepth) {
-		curPrimaryDepth = primaryDepth;
-	}
-	if(primaryDepth > maxPrimaryDepth) {
-		maxPrimaryDepth = primaryDepth;
-	}
-
-	var primary = updateOrder[primaryDepth] ||
-		(updateOrder[primaryDepth] = []);
-
-
-	return primary;
-};
-
-Observation.registerUpdate = function(observation, batchNum){
-	// mark as needing an update
-	if( observation.needsUpdate === true ) {
-		return;
-	}
-	remaining.updates++;
-	observation.needsUpdate = true;
-
-	var objs = updateUpdateOrder(observation);
-
-	objs.push(observation);
-};
-
-
-
-// This picks the observation with the smallest "depth" and
-// calls update on it (`currentObservation`).
-// If the `currentObservation` reads another observation with a higher depth (`deeperObservation`),
-// the `deeperObservation` will be updated (via `updateUntil`).
-// If the `currentObservation` reads another observation with a higher primary depth (`deeperPrimaryObservation`),
-// the `deeperPrimaryObservation` will be updated, but not have its callback called
-var afterCallbacks = [];
-/* jshint maxdepth:7*/
-Observation.updateAndNotify = function(ev, batchNum){
-	currentBatchNum = batchNum;
-	if(isUpdating === true){
-		// only allow access at one time to this method.
-		// This is because when calling .update ... that compute should be only able
-		// to cause updates to other computes it directly reads.  It's possible that
-		// reading other computes could call `updateAndNotify` again.
-		// If we didn't return, it's possible that other computes could update unrelated to the
-		// execution flow of the current compute being updated.  This would be very unexpected.
-		return;
-	}
-	isUpdating = true;
-	while(true) {
-		if( curPrimaryDepth <= maxPrimaryDepth ) {
-			var primary = updateOrder[curPrimaryDepth];
-			var lastUpdate = primary && primary.pop();
-			if(lastUpdate !== undefined) {
-				lastUpdate.update(currentBatchNum);
-			} else {
-				curPrimaryDepth++;
-			}
-		} else {
-			updateOrder = [];
-			curPrimaryDepth = Infinity;
-			maxPrimaryDepth = 0;
-			isUpdating = false;
-			var afterCB = afterCallbacks;
-			afterCallbacks = [];
-			afterCB.forEach(function(cb){
-				cb();
-			});
-			return;
-		}
-	}
-};
-canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
-
-Observation.afterUpdateAndNotify = function(callback){
-	canBatch.after(function(){
-		// here we know that the events have been fired, everything should
-		// be notified. Now we have to wait until all computes have
-		// finished firing.
-		if(isUpdating === true) {
-			afterCallbacks.push(callback);
-		} else {
-			callback();
-		}
-	});
-};
 
 
 // This is going to recursively check if there's any child compute
@@ -440,8 +332,11 @@ Observation.afterUpdateAndNotify = function(callback){
 // If there is, we'll update every parent on the way to ourselves.
 Observation.updateChildrenAndSelf = function(observation){
 	// check if there's children that .needsUpdate
-	if(observation.needsUpdate === true) {
-		return Observation.unregisterAndUpdate(observation);
+	if( queues.deriveQueue.isEnqueued( observation.update ) === true) {
+		// TODO ... probably want to be able to send log information
+		// to explain why this needed to be updated
+		queues.deriveQueue.flushQueuedTask(observation.update);
+		return true;
 	}
 	var childHasChanged = false;
 	for(var prop in observation.newObserved) {
@@ -452,26 +347,11 @@ Observation.updateChildrenAndSelf = function(observation){
 		}
 	}
 	if(childHasChanged === true) {
-		return observation.update(currentBatchNum);
+		observation.update();
+		return true;
 	}
 };
-// the problem with updateTo(observation)
-// is that that the read might never change
-// but the reader might be changing, and wont update itself, but something
-// else will
-Observation.unregisterAndUpdate = function(observation){
-	var primaryDepth = observation.getPrimaryDepth();
-	var primary = updateOrder[primaryDepth];
-	if(primary !== undefined) {
 
-		var index = primary.indexOf(observation);
-		if(index !== -1) {
-			primary.splice(index,1);
-		}
-
-	}
-	return observation.update(currentBatchNum);
-};
 
 
 
@@ -688,50 +568,51 @@ Observation.temporarilyBind = function (compute) {
 
 // can-reflect bindings ===========
 
+function makeMeta(handler, context, args) {
+	return {log: [handler.name+" called because observation changed to", args[0]]}
+}
+
 var callHandlers = function(newValue){
-	this.handlers.forEach(function(handler){
-		handler.call(this.compute, newValue);
-	}, this);
+	queues.enqueueByQueue(this.handlers.getNode([]), this, [newValue], makeMeta);
 };
-
-canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
-	if(!this.handlers) {
-		this.handlers = [];
-		//!steal-remove-start
-		if(this.compute.updater) {
-			canLog.warn("can-observation bound to with an existing handler");
-		}
-		//!steal-remove-end
-		this.compute.updater = callHandlers.bind(this);
-	}
-
-	if(!this.handlers.length) {
-		this.start();
-	}
-
-	this.handlers.push(handler);
-});
-
-canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(handler){
-	if (this.handlers) {
-		var index = this.handlers.indexOf(handler);
-		this.handlers.splice(index, 1);
-		if(this.handlers.length === 0) {
-			this.stop();
-		}
-	}
-});
-
-canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation.prototype.get);
 
 Observation.prototype.hasDependencies = function(){
 	return this.bound ? !isEmptyObject(this.newObserved) : undefined;
 };
-canReflect.set(Observation.prototype, canSymbol.for("can.isValueLike"), true);
-canReflect.set(Observation.prototype, canSymbol.for("can.isMapLike"), false);
-canReflect.set(Observation.prototype, canSymbol.for("can.isListLike"), false);
 
-canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
+canReflect.assignSymbols(Observation.prototype,{
+	"can.onValue": function(handler, queueName){
+		if(!this.handlers) {
+			this.handlers = new KeyTree([Object, Array]);
+			//!steal-remove-start
+			if(this.compute.updater) {
+				canLog.warn("can-observation bound to with an existing handler");
+			}
+			//!steal-remove-end
+			this.compute.updater = callHandlers.bind(this);
+		}
+
+		if(this.handlers.size() === 0) {
+			this.start();
+		}
+
+		this.handlers.add([queueName || "mutate", handler]);
+	},
+	"can.offValue": function(handler, queueName){
+		if (this.handlers) {
+			this.handlers.delete([queueName || "mutate", handler]);
+			if(this.handlers.size() === 0) {
+				this.stop();
+			}
+		}
+	},
+	"can.getValue": Observation.prototype.get,
+	"can.isValueLike": true,
+	"can.isMapLike": false,
+	"can.isListLike": false,
+	"can.valueHasDependencies": Observation.prototype.hasDependencies
+});
+
 
 canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"), function() {
 	var rets;

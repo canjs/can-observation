@@ -36,9 +36,11 @@
   },
   "dependencies": {
     "can-cid": "^1.0.0",
-    "can-event": "^3.6.0",
+    "can-event": "file:../can-event",
+    "can-key-tree": "file:../can-key-tree",
     "can-namespace": "1.0.0",
-    "can-reflect": "^1.0.0",
+    "can-queues": "file:../can-queues",
+    "can-reflect": "file:../can-reflect",
     "can-symbol": "^1.0.0",
     "can-util": "^3.9.0"
   },
