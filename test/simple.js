@@ -7,12 +7,11 @@ var queues = require("can-queues");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 var KeyTree = require("can-key-tree");
-var eventQueue = require("can-event/queue/queue");
+var eventQueue = require("can-event-queue");
 
 // a simple observable and compute to test
 // behaviors that require nesting of Observations
 var simpleObservable = function(value){
-	var handlers = new KeyTree([Object, Object, Array]);
 	var obs = {
 		get: function(){
 			Observation.add(this, "value");
@@ -33,24 +32,9 @@ var simpleObservable = function(value){
 };
 
 var simpleCompute = function(getter, name, primaryDepth){
-	var observation, fn;
-	var handlers = new KeyTree([Object,Object, Array],{
-		onFirst: function(){
-			fn.bound = true;
-			observation.start();
-		},
-		onEmpty: function(){
-			fn.bound = false;
-			observation.stop();
-		}
-	});
+	var observation, fn, handlers;
 
-	fn = function(){
-		Observation.add(fn,"change");
-		return observation.get();
-	};
-	CID(fn, name);
-	fn.updater = function(newVal, oldVal){
+	function dispatchEvents(newVal, oldVal) {
 		queues.batch.start();
 		queues.enqueueByQueue(handlers.getNode(["direct"]), fn, [newVal, oldVal], function(handler, context, args){
 			return {priority: context._primaryDepth};
@@ -60,6 +44,29 @@ var simpleCompute = function(getter, name, primaryDepth){
 			return {priority: context._primaryDepth};
 		},[name+" changed to ",newVal]);
 		queues.batch.stop();
+	}
+
+	handlers = new KeyTree([Object,Object, Array],{
+		onFirst: function(){
+			fn.bound = true;
+			canReflect.onValue(observation, dispatchEvents)
+			observation.start();
+		},
+		onEmpty: function(){
+			fn.bound = false;
+			canReflect.offValue(observation, dispatchEvents)
+		}
+	});
+
+
+
+	fn = function(){
+		Observation.add(fn,"change");
+		return observation.get();
+	};
+	CID(fn, name);
+	fn.updater = function(newVal, oldVal){
+
 	};
 
 	canReflect.assignSymbols(fn, {
@@ -83,9 +90,7 @@ var simpleCompute = function(getter, name, primaryDepth){
 	fn.off = fn.removeEventListener;
 
 
-	fn._primaryDepth = primaryDepth || 0;
-
-	observation = new Observation(getter, null, fn);
+	observation = new Observation(getter, null, {priority: primaryDepth || 0});
 
 	fn.observation = observation;
 

@@ -11,17 +11,14 @@ var CID = require('can-cid');
 
 var assign = require("can-util/js/assign/assign");
 var queues = require("can-queues");
-var eventQueue = require("can-event/queue/queue");
+var eventQueue = require("can-event-queue");
 
-var eventAsync = require("can-event/async/async");
 var clone = require("steal-clone");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 
 QUnit.module('can-observation',{
-	setup: function(){
-		eventAsync.sync();
-	}
+	setup: function(){}
 });
 
 QUnit.test("basics", function(){
@@ -59,11 +56,10 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 		var observes1 = getObserves1();
 
 		equal(observes1.length, 2, "two items");
-		equal(observes1[0].obj, obs1);
-		equal(observes1[1].obj, obs2);
-	}, null, function() {
-
+		equal(observes1[0][0], obs1);
+		equal(observes1[1][0], obs2);
 	});
+	//canReflect.onValue(oi, function(){})
 
 	oi.start();
 });
@@ -218,7 +214,7 @@ QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
 
 		// now when this gets added ... it's going to create its own
 		// batch which will call `Observation.updateAndNotify`
-		eventQueue.afterPreviousEvents(function(){});
+
 		return root.get();
 	},"afterPreviousCompute");
 
@@ -286,48 +282,6 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 });
 
 
-QUnit.test("it's possible canBatch.after is called before observations are updated", 4, function(){
-	var afterCalled, afterUpdateAndNotifyCalled;
-	var rootA = simpleObservable('a');
-	var rootB = simpleObservable('b');
-
-	var leftCompute = simpleCompute(function(){
-		return rootA.get();
-	},'leftCompute');
-
-	var rightCompute = simpleCompute(function(){
-		return rootB.get();
-	},'rightCompute');
-
-
-	leftCompute.addEventListener("change", function(){
-		eventQueue.start();
-
-		rootB.set("B");
-
-		eventQueue.after(function(){
-			afterCalled = true;
-			QUnit.ok(true, "after is called");
-		});
-		Observation.afterUpdateAndNotify(function(){
-			afterUpdateAndNotifyCalled = true;
-			QUnit.ok(true, "afterUpdateAndNotify is called");
-		});
-
-		eventQueue.stop();
-
-		// this is the same as reading a compute
-		eventQueue.flush();
-	});
-
-	rightCompute.addEventListener("change", function(){
-		QUnit.ok(afterCalled, "after should be called");
-		QUnit.ok(!afterUpdateAndNotifyCalled, "afterUpdateAndNotifyCalled not called yet");
-	});
-
-	rootA.set("A");
-});
-
 QUnit.test("calling a deep compute when only its child should have been updated (#19)", 2, function(){
 
 	// the problem is that childCompute knows it needs to change
@@ -385,7 +339,6 @@ QUnit.test('should throw if can-namespace.Observation is already defined', funct
 
 
 QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(){
-	queues.log();
 	var obs1 = assign({prop1: 1}, eventQueue);
     CID(obs1);
     var obs2 = assign({prop2: 2}, eventQueue);
@@ -402,17 +355,11 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	QUnit.equal(canReflect.getValue(observation), 3, "get unbound");
 	QUnit.equal(canReflect.valueHasDependencies(observation), undefined, "valueHasDependencies undef'd before start");
 
-	var stop = observation.stop;
-	observation.stop = function(){
-		QUnit.ok(true, "observation stopped");
-		return stop.apply(this, arguments);
-	};
 	// we shouldn't have to call start
 	//observation.start();
 
 	function handler(newValue){
 		QUnit.equal(newValue, 30, "observed new value");
-
 		canReflect.offValue(observation, handler);
 	}
 
@@ -427,7 +374,7 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	eventQueue.stop();
 
 	QUnit.equal(canReflect.getValue(observation), 30, "get bound second");
-
+	QUnit.ok(!observation.bound, "observation stopped");
 });
 
 QUnit.test("should not throw if offValue is called without calling onValue" , function() {
