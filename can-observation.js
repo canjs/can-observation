@@ -17,8 +17,6 @@ var assign = require('can-util/js/assign/assign');
 var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
 var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
-var CIDMap = require("can-util/js/cid-map/cid-map");
-var CIDSet = require("can-util/js/cid-set/cid-set");
 var queues = require("can-queues");
 var KeyTree = require("can-key-tree");
 var ObservationStack = require("./observation-stack");
@@ -26,7 +24,7 @@ var canSymbol = require("can-symbol");
 
 
 function makeMeta(handler, context, args) {
-	return {log: [handler.name+" called because observation changed to", args[0]]}
+	return {log: [handler.name+" called because observation changed to", args[0]]};
 }
 
 function Observation(func, context, options){
@@ -35,8 +33,8 @@ function Observation(func, context, options){
 	this.options = options || {priority: 0, isObservable: true};
 
 	// These properties will manage what our new and old dependencies are.
-	this.newObservationReciever = ObservationStack.makeReceiver();
-	this.oldObservationReciever = null;
+	this.newDependencies = ObservationStack.makeDependenciesRecorder();
+	this.oldDependencies = null;
 
 
 	// The event handlers on this observation.
@@ -147,14 +145,14 @@ assign(Observation.prototype,{
 	start: function(){
 		this.bound = true;
 		// Store the old dependencies
-		this.oldObservationReciever = this.newObservationReciever;
+		this.oldDependencies = this.newDependencies;
 
 		// Immediately start recording dependencies.
 		ObservationStack.start();
 		// Call the observation's function.
 		this.value = this.func.call(this.context);
 		// Get the dependencies
-		this.newObservationReciever = ObservationStack.stop();
+		this.newDependencies = ObservationStack.stop();
 		// Update the bindings
 		ObservationStack.updateObservations(this);
 	},
@@ -171,8 +169,8 @@ assign(Observation.prototype,{
 	stop: function(){
 		// track this because events can be in the queue.
 		this.bound = false;
-		ObservationStack.stopObserving(this.newObservationReciever, this.onDependencyChange);
-		this.newObservationReciever = ObservationStack.makeReceiver();
+		ObservationStack.stopObserving(this.newDependencies, this.onDependencyChange);
+		this.newDependencies = ObservationStack.makeDependenciesRecorder();
 	}
 });
 
@@ -188,11 +186,11 @@ canReflect.assignSymbols(Observation.prototype,{
 	"can.isMapLike": false,
 	"can.isListLike": false,
 	"can.valueHasDependencies": function(){
-		return this.bound ? !isEmptyObject(this.newObservationReciever) : undefined;
+		return this.bound ? !isEmptyObject(this.newDependencies) : undefined;
 	},
 	"can.getValueDependencies": function(){
 		if(this.bound === true) {
-			return this.newObservationReciever;
+			return this.newDependencies;
 		}
 		return undefined;
 	}

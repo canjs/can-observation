@@ -1,4 +1,4 @@
-var canReflect = require("can-reflect")
+var canReflect = require("can-reflect");
 
 var stack = [];
 
@@ -19,11 +19,11 @@ function addEdges(eventSet, observable){
     eventSet.forEach(addEdgeIfNotInOldSet, {
         onDependencyChange: this.onDependencyChange,
         observable: observable,
-        oldEventSet: this.oldObservationReciever.keyDependencies.get(observable)
+        oldEventSet: this.oldDependencies.keyDependencies.get(observable)
     });
 }
 function addValueDependencies(observable) {
-    if(!this.oldObservationReciever.valueDependencies.delete(observable)) {
+    if(!this.oldDependencies.valueDependencies.delete(observable)) {
         canReflect.onValue(observable, this.onDependencyChange,"notify");
     }
 }
@@ -34,7 +34,7 @@ function removeValueDependencies(observable) {
 
 
 module.exports = {
-    makeReceiver: function(){
+    makeDependenciesRecorder: function(){
         return {
             traps: null,
             keyDependencies: new Map(),
@@ -121,20 +121,7 @@ module.exports = {
     			top.traps.push.apply(top.traps, observes);
     		} else {
     			for(var i =0, len = observes.length; i < len; i++) {
-    				var trap = observes[i],
-    					obj = trap[0],
-    					event = trap[1];
-
-                    if(event === undefined) {
-                        top.valueDependencies.add(obj);
-                    } else {
-                        var eventSet = top.keyDependencies.get(obj);
-            			if(!eventSet) {
-            				eventSet = new Set();
-            				top.keyDependencies.set(obj, eventSet);
-            			}
-            			eventSet.add(event);
-                    }
+                    this.observe(observes[i][0],observes[i][1]);
     			}
     		}
     	}
@@ -240,12 +227,12 @@ module.exports = {
     	return last && (last.ignore === 0) && last;
     },
     // a helper that can update
-    // observationData -> {newObservationReciever, oldObservationReciever, onDependencyChange}
+    // observationData -> {newDependencies, oldDependencies, onDependencyChange}
     updateObservations: function(observationData){
-        observationData.newObservationReciever.keyDependencies.forEach(addEdges, observationData);
-        observationData.oldObservationReciever.keyDependencies.forEach(removeEdges, observationData);
-        observationData.newObservationReciever.valueDependencies.forEach(addValueDependencies, observationData);
-        observationData.oldObservationReciever.valueDependencies.forEach(removeValueDependencies, observationData);
+        observationData.newDependencies.keyDependencies.forEach(addEdges, observationData);
+        observationData.oldDependencies.keyDependencies.forEach(removeEdges, observationData);
+        observationData.newDependencies.valueDependencies.forEach(addValueDependencies, observationData);
+        observationData.oldDependencies.valueDependencies.forEach(removeValueDependencies, observationData);
     },
     stopObserving: function(observationReciever, onDependencyChange){
         observationReciever.keyDependencies.forEach(removeEdges, {onDependencyChange: onDependencyChange});

@@ -30,7 +30,7 @@ QUnit.test("basics", function(){
 	});
 
 	canReflect.onValue(observation, function(newVal){
-		QUnit.equal(newVal, "Ab")
+		QUnit.equal(newVal, "Ab");
 	});
 
 	rootA.set("A");
