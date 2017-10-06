@@ -19,7 +19,8 @@ var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
 var queues = require("can-queues");
 var KeyTree = require("can-key-tree");
-var ObservationStack = require("./observation-stack");
+var ObservationRecorder = require("can-observation-recorder");
+var recorderHelpers = require("./recorder-dependency-helpers");
 var canSymbol = require("can-symbol");
 
 
@@ -33,7 +34,7 @@ function Observation(func, context, options){
 	this.options = options || {priority: 0, isObservable: true};
 
 	// These properties will manage what our new and old dependencies are.
-	this.newDependencies = ObservationStack.makeDependenciesRecorder();
+	this.newDependencies = ObservationRecorder.makeDependenciesRecorder();
 	this.oldDependencies = null;
 
 
@@ -76,7 +77,7 @@ assign(Observation.prototype,{
 
 
 			// ... tell the tracking compute to listen to change on this observation.
-			ObservationStack.observe(this);
+			ObservationRecorder.add(this);
 			// ... if we are not bound, we should bind so that
 			// we don't have to re-read to get the value of this compute.
 			if (!this.bound) {
@@ -148,13 +149,13 @@ assign(Observation.prototype,{
 		this.oldDependencies = this.newDependencies;
 
 		// Immediately start recording dependencies.
-		ObservationStack.start();
+		ObservationRecorder.start();
 		// Call the observation's function.
 		this.value = this.func.call(this.context);
 		// Get the dependencies
-		this.newDependencies = ObservationStack.stop();
+		this.newDependencies = ObservationRecorder.stop();
 		// Update the bindings
-		ObservationStack.updateObservations(this);
+		recorderHelpers.updateObservations(this);
 	},
 
 	/**
@@ -169,8 +170,8 @@ assign(Observation.prototype,{
 	stop: function(){
 		// track this because events can be in the queue.
 		this.bound = false;
-		ObservationStack.stopObserving(this.newDependencies, this.onDependencyChange);
-		this.newDependencies = ObservationStack.makeDependenciesRecorder();
+		recorderHelpers.stopObserving(this.newDependencies, this.onDependencyChange);
+		this.newDependencies = ObservationRecorder.makeDependenciesRecorder();
 	}
 });
 
@@ -227,12 +228,12 @@ Observation.updateChildrenAndSelf = function(observation){
 };
 
 
-Observation.add = ObservationStack.observe;
-Observation.addAll = ObservationStack.observeMany;
-Observation.ignore = ObservationStack.ignore;
-Observation.trap = ObservationStack.trap;
-Observation.trapsCount = ObservationStack.trapsCount;
-Observation.isRecording = ObservationStack.isObserving;
+Observation.add = ObservationRecorder.add;
+Observation.addAll = ObservationRecorder.addMany;
+Observation.ignore = ObservationRecorder.ignore;
+Observation.trap = ObservationRecorder.trap;
+Observation.trapsCount = ObservationRecorder.trapsCount;
+Observation.isRecording = ObservationRecorder.isRecording;
 
 // temporarily bind
 
