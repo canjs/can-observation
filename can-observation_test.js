@@ -136,9 +136,9 @@ test("deeply nested computes that are read that don't allow deeper primary depth
 	});
 
 
-	eventQueue.start();
+	queues.batch.start();
 	rootB.set('B');
-	eventQueue.stop();
+	queues.batch.stop();
 
 
 	QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
@@ -366,12 +366,12 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	canReflect.onValue(observation, handler);
 	QUnit.equal(canReflect.getValue(observation), 3, "get bound first");
 	QUnit.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies true after start");
-	eventQueue.start();
+	queues.batch.start();
 	obs1.prop1 = 10;
 	obs2.prop2 = 20;
 	obs1.dispatch("prop1");
 	obs2.dispatch("prop2");
-	eventQueue.stop();
+	queues.batch.stop();
 
 	QUnit.equal(canReflect.getValue(observation), 30, "get bound second");
 	QUnit.ok(!observation.bound, "observation stopped");
@@ -440,10 +440,10 @@ QUnit.test("Observation can listen to something decorated with onValue and offVa
 
 	QUnit.equal( canReflect.getValue(o), 3);
 
-	eventQueue.start();
+	queues.batch.start();
 	v1(10);
 	v2(20);
-	eventQueue.stop();
+	queues.batch.stop();
 
 	QUnit.equal( canReflect.getValue(o), 30);
 });
@@ -461,10 +461,10 @@ QUnit.test("Observation can listen to something decorated with onValue and offVa
 
 	QUnit.equal( canReflect.getValue(o), 3);
 
-	eventQueue.start();
+	queues.batch.start();
 	v1.set(10);
 	v2.set(20);
-	eventQueue.stop();
+	queues.batch.stop();
 
 	QUnit.equal( canReflect.getValue(o), 30);
 });
@@ -487,10 +487,10 @@ QUnit.test("Observation can itself be observable", function(){
 
 	QUnit.equal( canReflect.getValue(oB), 9);
 
-	eventQueue.start();
+	queues.batch.start();
 	v1.set(10);
 	v2.set(20);
-	eventQueue.stop();
+	queues.batch.stop();
 
 	QUnit.equal( canReflect.getValue(oB), 90);
 	QUnit.ok(oA.bound, "bound on oA");

@@ -36,9 +36,9 @@
   "dependencies": {
     "can-cid": "^1.0.0",
     "can-event-queue": "^0.1.1",
-    "can-key-tree": "0.0.2",
+    "can-key-tree": "0.X",
     "can-namespace": "1.0.0",
-    "can-observation-recorder": "0.0.1",
+    "can-observation-recorder": "^0.1.0",
     "can-queues": "^0.1.1",
     "can-reflect": "^1.4.5",
     "can-symbol": "^1.0.0",
