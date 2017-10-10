@@ -587,3 +587,11 @@ QUnit.test("should be able to bind, unbind, and re-bind to an observation", func
 
 	QUnit.ok(observation.bound, "observation is bound");
 });
+
+QUnit.test("can.getName symbol behavior", function(assert) {
+	var obs = new Observation(function(){});
+	var name = obs[canSymbol.for("can.getName")]();
+
+	assert.ok(/Observation/.test(name), "includes constructor name");
+	assert.ok(/<\d+>/.test(name), "includes angle brackets and cid");
+});
