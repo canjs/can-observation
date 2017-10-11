@@ -755,7 +755,7 @@ canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"),
 });
 
 canReflect.set(Observation.prototype, canSymbol.for("can.getName"), function() {
-	return this.constructor.name + "<" + this._cid + ">";
+	return this.constructor.name + "<" + CID(this) + ">";
 });
 
 if (namespace.Observation) {
