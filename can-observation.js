@@ -754,6 +754,10 @@ canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"),
 	return rets;
 });
 
+canReflect.set(Observation.prototype, canSymbol.for("can.getName"), function() {
+	return this.constructor.name + "<" + CID(this) + ">";
+});
+
 if (namespace.Observation) {
 	throw new Error("You can't have two versions of can-observation, check your dependencies");
 } else {
