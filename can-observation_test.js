@@ -517,5 +517,5 @@ QUnit.test("no dependencies", function(){
 	var handler = function() {};
 	canReflect.onValue(observation, handler);
 
-	QUnit.ok(!canReflect.valueHasDependencies(observation), "no dependencies");
+	QUnit.ok(canReflect.valueHasDependencies(observation) === false, "no dependencies");
 });
