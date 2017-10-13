@@ -14,7 +14,6 @@
 // - can.__notObserve - Returns a function that can not be observed.
 
 var assign = require('can-util/js/assign/assign');
-var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
 var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
 var queues = require("can-queues");
