@@ -187,7 +187,8 @@ canReflect.assignSymbols(Observation.prototype,{
 	"can.isMapLike": false,
 	"can.isListLike": false,
 	"can.valueHasDependencies": function(){
-		return this.bound ? !isEmptyObject(this.newDependencies) : undefined;
+		var newDependencies = this.newDependencies;
+		return this.bound ? newDependencies.valueDependencies.size + newDependencies.keyDependencies.size  : undefined;
 	},
 	"can.getValueDependencies": function(){
 		if(this.bound === true) {
