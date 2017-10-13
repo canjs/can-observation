@@ -198,7 +198,7 @@ canReflect.assignSymbols(Observation.prototype,{
 		return undefined;
 	},
 	"can.getPriority": function(){
-		return this.options.priority
+		return this.options.priority;
 	},
 	"can.setPriority": function(priority){
 		this.options.priority = priority;
