@@ -40,7 +40,7 @@
     "can-namespace": "1.0.0",
     "can-observation-recorder": "<2.0.0",
     "can-queues": "<2.0.0",
-    "can-reflect": "^1.4.5",
+    "can-reflect": "^1.6.0",
     "can-symbol": "^1.0.0",
     "can-util": "^3.9.0"
   },

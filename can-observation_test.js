@@ -519,3 +519,13 @@ QUnit.test("no dependencies", function(){
 
 	QUnit.ok(canReflect.valueHasDependencies(observation) === false, "no dependencies");
 });
+
+QUnit.test("get and set priority", function(){
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+	canReflect.setPriority(observation, 3);
+
+
+	QUnit.equal(canReflect.getPriority(observation), 3);
+});
