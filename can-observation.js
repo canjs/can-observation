@@ -55,10 +55,10 @@ function Observation(func, context, options){
 
 	//!steal-remove-start
 	Object.defineProperty(this.onDependencyChange,"name",{
-		value: "observation<"+this._cid+">.onDependencyChange"
+		value: "observation<"+func.name+">.onDependencyChange"
 	});
 	Object.defineProperty(this.update,"name",{
-		value: "observation<"+this._cid+">.update"
+		value: "observation<"+func.name+">.update"
 	});
 	//!steal-remove-end
 
@@ -245,13 +245,13 @@ Observation.isRecording = ObservationRecorder.isRecording;
 
 // temporarily bind
 
-var noop = function(){};
+var temporarilyBoundNoOperation = function(){};
 // A list of temporarily bound computes
 var observables;
 // Unbinds all temporarily bound computes.
 var unbindComputes = function () {
 	for (var i = 0, len = observables.length; i < len; i++) {
-		canReflect.offValue(observables[i], noop);
+		canReflect.offValue(observables[i], temporarilyBoundNoOperation);
 	}
 	observables = null;
 };
@@ -260,7 +260,7 @@ var unbindComputes = function () {
 // Binds computes for a moment to cache their value and prevent re-calculating it.
 Observation.temporarilyBind = function (compute) {
 	var computeInstance = compute.computeInstance || compute;
-	canReflect.onValue(computeInstance, noop);
+	canReflect.onValue(computeInstance, temporarilyBoundNoOperation);
 	if (!observables) {
 		observables = [];
 		setTimeout(unbindComputes, 10);
