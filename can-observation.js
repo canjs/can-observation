@@ -210,12 +210,8 @@ canReflect.assignSymbols(Observation.prototype,{
 		this.options.priority = priority;
 	},
 	//!steal-remove-start
-	"can.getIdentity": function() {
-		return canReflect.getName(this.func);
-	},
 	"can.getName": function() {
-		var identity = canReflect.getIdentity(this) || "";
-		return canReflect.getName(this.constructor) + "<" + identity + ">";
+		return canReflect.getName(this.constructor) + "<>";
 	},
 	//!steal-remove-end
 });
