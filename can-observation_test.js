@@ -511,6 +511,26 @@ QUnit.test("should be able to bind, unbind, and re-bind to an observation", func
 	QUnit.ok(observation.bound, "observation is bound");
 });
 
+QUnit.test("no dependencies", function(){
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+	var handler = function() {};
+	canReflect.onValue(observation, handler);
+
+	QUnit.ok(canReflect.valueHasDependencies(observation) === false, "no dependencies");
+});
+
+QUnit.test("get and set priority", function(){
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+	canReflect.setPriority(observation, 3);
+
+
+	QUnit.equal(canReflect.getPriority(observation), 3);
+});
+
 canTestHelpers.devOnlyTest("can.getName and can.getIdentity symbol behavior", function(assert) {
 	var obs = new Observation(function(){});
 	obs[canSymbol.for("can.getIdentity")] = function() {

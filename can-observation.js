@@ -14,7 +14,6 @@
 // - can.__notObserve - Returns a function that can not be observed.
 
 var assign = require('can-util/js/assign/assign');
-var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
 var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
 var queues = require("can-queues");
@@ -193,13 +192,22 @@ canReflect.assignSymbols(Observation.prototype,{
 	"can.isMapLike": false,
 	"can.isListLike": false,
 	"can.valueHasDependencies": function(){
-		return this.bound ? !isEmptyObject(this.newDependencies) : undefined;
+		var newDependencies = this.newDependencies;
+		return this.bound ?
+			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
+			undefined;
 	},
 	"can.getValueDependencies": function(){
 		if(this.bound === true) {
 			return this.newDependencies;
 		}
 		return undefined;
+	},
+	"can.getPriority": function(){
+		return this.options.priority;
+	},
+	"can.setPriority": function(priority){
+		this.options.priority = priority;
 	},
 	//!steal-remove-start
 	"can.getIdentity": function() {
@@ -252,13 +260,13 @@ Observation.isRecording = ObservationRecorder.isRecording;
 
 // temporarily bind
 
-var noop = function(){};
+var temporarilyBoundNoOperation = function(){};
 // A list of temporarily bound computes
 var observables;
 // Unbinds all temporarily bound computes.
 var unbindComputes = function () {
 	for (var i = 0, len = observables.length; i < len; i++) {
-		canReflect.offValue(observables[i], noop);
+		canReflect.offValue(observables[i], temporarilyBoundNoOperation);
 	}
 	observables = null;
 };
@@ -267,7 +275,7 @@ var unbindComputes = function () {
 // Binds computes for a moment to cache their value and prevent re-calculating it.
 Observation.temporarilyBind = function (compute) {
 	var computeInstance = compute.computeInstance || compute;
-	canReflect.onValue(computeInstance, noop);
+	canReflect.onValue(computeInstance, temporarilyBoundNoOperation);
 	if (!observables) {
 		observables = [];
 		setTimeout(unbindComputes, 10);
