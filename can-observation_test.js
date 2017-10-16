@@ -16,6 +16,7 @@ var eventQueue = require("can-event-queue");
 var clone = require("steal-clone");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
+var canTestHelpers = require("can-test-helpers");
 
 QUnit.module('can-observation',{
 	setup: function(){}
@@ -508,4 +509,15 @@ QUnit.test("should be able to bind, unbind, and re-bind to an observation", func
 	canReflect.onValue(observation, handler);
 
 	QUnit.ok(observation.bound, "observation is bound");
+});
+
+canTestHelpers.devOnlyTest("can.getName and can.getIdentity symbol behavior", function(assert) {
+	var obs = new Observation(function(){});
+	obs[canSymbol.for("can.getIdentity")] = function() {
+		return 0;
+	};
+
+	var name = obs[canSymbol.for("can.getName")]();
+
+	assert.equal(name, "Observation<0>", "includes constructor name and identity");
 });
