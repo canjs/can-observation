@@ -56,17 +56,13 @@ function Observation(func, context, options){
 	this.update = this.update.bind(this);
 
 	//!steal-remove-start
-	canReflect.assignSymbols(this.onDependencyChange, {
-		"can.getName": function() {
-			return canReflect.getName(this) + ".onDependencyChange";
-		}.bind(this),
-	});
-	canReflect.assignSymbols(this.update, {
-		"can.getName": function() {
-			return canReflect.getName(this) + ".update";
-		}.bind(this),
-	});
-	//!steal-remove-end
+    Object.defineProperty(this.onDependencyChange,"name",{
+        value: canReflect.getName(this)+".onDependencyChange"
+    });
+    Object.defineProperty(this.update,"name",{
+        value: canReflect.getName(this)+".update"
+    });
+    //!steal-remove-end
 }
 
 
@@ -212,8 +208,8 @@ canReflect.assignSymbols(Observation.prototype,{
 	},
 	//!steal-remove-start
 	"can.getName": function() {
-		return canReflect.getName(this.constructor) + "<>";
-	},
+		return canReflect.getName(this.constructor) + "<"+canReflect.getName(this.func)+">";
+	}
 	//!steal-remove-end
 });
 
