@@ -86,7 +86,7 @@ assign(Observation.prototype,{
 		}
 
 
-		if(this.bound === true) {
+		if(this.bound === true && this.hasDependencies()) {
 
 			// we've already got a value.  However, it might be possible that
 			// something else is going to read this that has a lower "depth".
@@ -171,6 +171,12 @@ assign(Observation.prototype,{
 		this.bound = false;
 		recorderHelpers.stopObserving(this.newDependencies, this.onDependencyChange);
 		this.newDependencies = ObservationRecorder.makeDependenciesRecorder();
+	},
+	hasDependencies: function(){
+		var newDependencies = this.newDependencies;
+		return this.bound ?
+			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
+			undefined;
 	}
 });
 
@@ -185,12 +191,7 @@ canReflect.assignSymbols(Observation.prototype,{
 	"can.isValueLike": true,
 	"can.isMapLike": false,
 	"can.isListLike": false,
-	"can.valueHasDependencies": function(){
-		var newDependencies = this.newDependencies;
-		return this.bound ?
-			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
-			undefined;
-	},
+	"can.valueHasDependencies": Observation.prototype.hasDependencies,
 	"can.getValueDependencies": function(){
 		if(this.bound === true) {
 			return this.newDependencies;
