@@ -24,7 +24,9 @@ var canSymbol = require("can-symbol");
 
 
 function makeMeta(handler, context, args) {
-	return {log: [handler.name+" called because observation changed to", args[0]]};
+	return {
+		log: [ canReflect.getName(handler), "called because", canReflect.getName(context), "changed to", JSON.stringify(args[0]), "from", JSON.stringify(args[1]) ],
+	};
 }
 
 function Observation(func, context, options){
@@ -54,14 +56,17 @@ function Observation(func, context, options){
 	this.update = this.update.bind(this);
 
 	//!steal-remove-start
-	Object.defineProperty(this.onDependencyChange,"name",{
-		value: "observation<"+func.name+">.onDependencyChange"
+	canReflect.assignSymbols(this.onDependencyChange, {
+		"can.getName": function() {
+			return canReflect.getName(this) + ".onDependencyChange";
+		}.bind(this),
 	});
-	Object.defineProperty(this.update,"name",{
-		value: "observation<"+func.name+">.update"
+	canReflect.assignSymbols(this.update, {
+		"can.getName": function() {
+			return canReflect.getName(this) + ".update";
+		}.bind(this),
 	});
 	//!steal-remove-end
-
 }
 
 
@@ -113,7 +118,8 @@ assign(Observation.prototype,{
 		if(this.bound === true) {
 			// No need to flush b/c something in the queue caused this to change
 			queues.deriveQueue.enqueue(this.update, this, [],{
-				priority: this.options.priority
+				priority: this.options.priority,
+				log: [ canReflect.getName(this.update), "called because", canReflect.getName(this), "changed" ],
 			});
 		}
 	},
@@ -203,7 +209,12 @@ canReflect.assignSymbols(Observation.prototype,{
 	},
 	"can.setPriority": function(priority){
 		this.options.priority = priority;
-	}
+	},
+	//!steal-remove-start
+	"can.getName": function() {
+		return canReflect.getName(this.constructor) + "<>";
+	},
+	//!steal-remove-end
 });
 
 
