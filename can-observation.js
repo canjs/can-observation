@@ -21,7 +21,7 @@ var KeyTree = require("can-key-tree");
 var ObservationRecorder = require("can-observation-recorder");
 var recorderHelpers = require("./recorder-dependency-helpers");
 var canSymbol = require("can-symbol");
-
+var dev = require("can-log/dev/dev");
 
 
 function Observation(func, context, options){
@@ -121,6 +121,11 @@ assign(Observation.prototype,{
 			// Get the new value and register this event handler to any new observables.
 			this.start();
 			if(oldValue !== this.value) {
+				//!steal-remove-start
+				if (typeof this._log === "function") {
+					this._log(oldValue, this.value);
+				}
+				//!steal-remove-end
 				// Call handlers for this observation
 				queues.enqueueByQueue(this.handlers.getNode([]), this, [this.value, oldValue], null,
 				 [canReflect.getName(this), "changed to", this.value, "from", oldValue ]);
@@ -173,6 +178,28 @@ assign(Observation.prototype,{
 		return this.bound ?
 			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
 			undefined;
+	},
+	/**
+	 * @function can-observation.prototype.log log
+	 * @parent can-observation.prototype prototype
+	 *
+	 * @signature `observation.log()`
+	 *
+	 * Turns on logging of changes to the browser console.
+	 */
+	log: function() {
+		//!steal-remove-start
+		var quoteString = function quoteString(x) {
+			return typeof x === "string" ? JSON.stringify(x) : x;
+		};
+		this._log = function(previous, current) {
+			dev.log(
+				canReflect.getName(this),
+				"\n is  ", quoteString(current),
+				"\n was ", quoteString(previous)
+			);
+		};
+		//!steal-remove-end
 	}
 });
 

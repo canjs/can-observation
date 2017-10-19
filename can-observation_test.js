@@ -540,3 +540,26 @@ QUnit.test("a bound observation with no dependencies will keep calling its funct
 	val = "HELLO";
 	QUnit.equal(canReflect.getValue(observation), val);
 });
+
+QUnit.test("log observable changes", function(assert) {
+	var dev = require("can-log/dev/dev");
+	var name = simpleObservable("John Doe");
+
+	assert.expect(3);
+	var log = dev.log;
+	dev.log = function() {
+		dev.log = log;
+		assert.equal(arguments[0], "Observation<>", "should use can.getName");
+		assert.equal(arguments[2], '"Charles Babbage"', "should use current value");
+		assert.equal(arguments[4], '"John Doe"', "should use previous value");
+	};
+
+	var observation = new Observation(function() {
+		Observation.add(name, "value");
+		return name.get();
+	});
+
+	observation.log();
+	observation.start();
+	name.set("Charles Babbage");
+});
