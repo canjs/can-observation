@@ -25,7 +25,7 @@ var canSymbol = require("can-symbol");
 
 function makeMeta(handler, context, args) {
 	return {
-		log: [ canReflect.getName(handler), "called because", canReflect.getName(context), "changed to", JSON.stringify(args[0]), "from", JSON.stringify(args[1]) ],
+		log: [ canReflect.getName(handler), "called because", canReflect.getName(context), "changed to", args[0], "from", args[1] ],
 	};
 }
 
@@ -56,13 +56,13 @@ function Observation(func, context, options){
 	this.update = this.update.bind(this);
 
 	//!steal-remove-start
-    Object.defineProperty(this.onDependencyChange,"name",{
-        value: canReflect.getName(this)+".onDependencyChange"
-    });
-    Object.defineProperty(this.update,"name",{
-        value: canReflect.getName(this)+".update"
-    });
-    //!steal-remove-end
+	Object.defineProperty(this.onDependencyChange, "name", {
+		value: canReflect.getName(this) + ".onDependencyChange",
+	});
+	Object.defineProperty(this.update, "name", {
+		value: canReflect.getName(this) + ".update",
+	});
+	//!steal-remove-end
 }
 
 
@@ -208,8 +208,8 @@ canReflect.assignSymbols(Observation.prototype,{
 	},
 	//!steal-remove-start
 	"can.getName": function() {
-		return canReflect.getName(this.constructor) + "<"+canReflect.getName(this.func)+">";
-	}
+		return canReflect.getName(this.constructor) + "<" + canReflect.getName(this.func) + ">";
+	},
 	//!steal-remove-end
 });
 
