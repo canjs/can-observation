@@ -23,11 +23,6 @@ var recorderHelpers = require("./recorder-dependency-helpers");
 var canSymbol = require("can-symbol");
 
 
-function makeMeta(handler, context, args) {
-	return {
-		log: [ canReflect.getName(handler), "called because", canReflect.getName(context), "changed to", args[0], "from", args[1] ],
-	};
-}
 
 function Observation(func, context, options){
 	this.func = func;
@@ -52,7 +47,10 @@ function Observation(func, context, options){
 
 
 	// Make functions we need to pass around w/o passing context
-	this.onDependencyChange = this.onDependencyChange.bind(this);
+	var self = this;
+	this.onDependencyChange = function(newVal){
+		self.dependencyChange(this, newVal);
+	};
 	this.update = this.update.bind(this);
 
 	//!steal-remove-start
@@ -103,20 +101,15 @@ assign(Observation.prototype,{
 			return this.func.call(this.context);
 		}
 	},
-
-	// TODO: remove maybe when we get to scope?
-	onDependencyChange: function(value){
-		this.dependencyChange(value);
-	},
 	// This is called by one of the dependency observables
 	// It will queue up an update to be run after all source observables have had time to change.
-	dependencyChange: function(){
+	dependencyChange: function(context, args){
 		if(this.bound === true) {
 			// No need to flush b/c something in the queue caused this to change
 			queues.deriveQueue.enqueue(this.update, this, [],{
 				priority: this.options.priority,
-				log: [ canReflect.getName(this.update), "called because", canReflect.getName(this), "changed" ],
-			});
+				log: [ canReflect.getName(this.update), "called because", canReflect.getName(context), "changed" ],
+			},[canReflect.getName(context), "changed"]);
 		}
 	},
 	// Called to update its value as part of the `derive` queue.
@@ -129,7 +122,8 @@ assign(Observation.prototype,{
 			this.start();
 			if(oldValue !== this.value) {
 				// Call handlers for this observation
-				queues.enqueueByQueue(this.handlers.getNode([]), this, [this.value, oldValue], makeMeta);
+				queues.enqueueByQueue(this.handlers.getNode([]), this, [this.value, oldValue], null,
+				 [canReflect.getName(this), "changed to", this.value, "from", oldValue ]);
 				return true;
 			}
 		}
