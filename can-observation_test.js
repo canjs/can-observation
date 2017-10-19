@@ -529,3 +529,14 @@ QUnit.test("get and set priority", function(){
 
 	QUnit.equal(canReflect.getPriority(observation), 3);
 });
+
+QUnit.test("a bound observation with no dependencies will keep calling its function", function(){
+	var val = "Hello";
+	var observation = new Observation(function() {
+		return val;
+	});
+	canReflect.onValue(observation,function(){});
+	QUnit.equal(canReflect.getValue(observation), val);
+	val = "HELLO";
+	QUnit.equal(canReflect.getValue(observation), val);
+});
