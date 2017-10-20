@@ -85,7 +85,7 @@ assign(Observation.prototype,{
 		}
 
 
-		if(this.bound === true && this.hasDependencies()) {
+		if(this.bound === true ) {
 
 			// we've already got a value.  However, it might be possible that
 			// something else is going to read this that has a lower "depth".

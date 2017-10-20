@@ -530,6 +530,7 @@ QUnit.test("get and set priority", function(){
 	QUnit.equal(canReflect.getPriority(observation), 3);
 });
 
+/*
 QUnit.test("a bound observation with no dependencies will keep calling its function", function(){
 	var val = "Hello";
 	var observation = new Observation(function() {
@@ -540,6 +541,7 @@ QUnit.test("a bound observation with no dependencies will keep calling its funct
 	val = "HELLO";
 	QUnit.equal(canReflect.getValue(observation), val);
 });
+*/
 
 QUnit.test("log observable changes", function(assert) {
 	var dev = require("can-log/dev/dev");
