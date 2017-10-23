@@ -23,7 +23,6 @@ var recorderHelpers = require("./recorder-dependency-helpers");
 var canSymbol = require("can-symbol");
 var dev = require("can-log/dev/dev");
 
-
 function Observation(func, context, options){
 	this.func = func;
 	this.context = context;
@@ -106,10 +105,16 @@ assign(Observation.prototype,{
 	dependencyChange: function(context, args){
 		if(this.bound === true) {
 			// No need to flush b/c something in the queue caused this to change
-			queues.deriveQueue.enqueue(this.update, this, [],{
-				priority: this.options.priority,
-				log: [ canReflect.getName(this.update), "called because", canReflect.getName(context), "changed" ],
-			},[canReflect.getName(context), "changed"]);
+			queues.deriveQueue.enqueue(this.update, this, []
+				//!steal-remove-start
+				/* jshint laxcomma: true */
+				, {
+					priority: this.options.priority,
+					log: [ canReflect.getName(this.update) ]
+				}, [canReflect.getName(context), "changed"]
+				/* jshint laxcomma: false */
+				//!steal-remove-end
+			);
 		}
 	},
 	// Called to update its value as part of the `derive` queue.
