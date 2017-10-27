@@ -105,13 +105,19 @@ assign(Observation.prototype,{
 	dependencyChange: function(context, args){
 		if(this.bound === true) {
 			// No need to flush b/c something in the queue caused this to change
-			queues.deriveQueue.enqueue(this.update, this, []
+			queues.deriveQueue.enqueue(this.update, this, [],
+
+				{
+					priority: this.options.priority
+					//!steal-remove-start
+					/* jshint laxcomma: true */
+					, log: [ canReflect.getName(this.update) ]
+					/* jshint laxcomma: false */
+					//!steal-remove-end
+				}
 				//!steal-remove-start
 				/* jshint laxcomma: true */
-				, {
-					priority: this.options.priority,
-					log: [ canReflect.getName(this.update) ]
-				}, [canReflect.getName(context), "changed"]
+				, [canReflect.getName(context), "changed"]
 				/* jshint laxcomma: false */
 				//!steal-remove-end
 			);
