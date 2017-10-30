@@ -28,7 +28,8 @@ var CIDSet = require("can-util/js/cid-set/cid-set");
 
 /**
  * @module {constructor} can-observation
- * @parent can-infrastructure
+ * @parent can-observables
+ * @collection can-infrastructure
  * @group can-observation.prototype prototype
  * @group can-observation.static static
  * @group can-observation.types types
