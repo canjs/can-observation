@@ -3,7 +3,7 @@
 @group can-observation.prototype prototype
 @group can-observation.static static
 @group can-observation.types types
-@package ./package.json
+@package ../package.json
 
 Provides a mechanism to notify when an observable has been read and a
 way to observe those reads called within a given function.
