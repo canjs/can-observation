@@ -313,6 +313,7 @@ assign(Observation.prototype,{
 	}
 	/**
 	 * @property {*} can-observation.prototype.value
+	 * @hide
 	 *
 	 * The return value of the function once [can-observation.prototype.start] is called.
 	 *
