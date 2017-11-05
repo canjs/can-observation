@@ -219,7 +219,16 @@ canReflect.assignSymbols(Observation.prototype,{
 		this.handlers.add([queueName || "mutate", handler]);
 	},
 	"can.offValue": function(handler, queueName){
-		this.handlers.delete([queueName || "mutate", handler]);
+		if(handler === undefined) {
+			if(queueName === undefined) {
+				this.handlers.delete([]);
+			} else {
+				this.handlers.delete([queueName]);
+			}
+		} else {
+			this.handlers.delete([queueName || "mutate", handler]);
+		}
+
 	},
 	"can.getValue": Observation.prototype.get,
 	"can.isValueLike": true,

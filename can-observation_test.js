@@ -565,3 +565,20 @@ QUnit.test("log observable changes", function(assert) {
 	observation.start();
 	name.set("Charles Babbage");
 });
+
+QUnit.test("no handler and queue removes all dependencies", function(){
+	var name = simpleObservable("John Doe");
+	var observation = new Observation(function() {
+		Observation.add(name, "value");
+		return name.get();
+	});
+
+	canReflect.onValue(observation, function(){});
+	canReflect.onValue(observation, function(){},"notify");
+
+	QUnit.equal(observation.handlers.get([]).length, 2);
+
+	canReflect.offValue(observation);
+
+	QUnit.equal(observation.handlers.get([]).length, 0);
+});
