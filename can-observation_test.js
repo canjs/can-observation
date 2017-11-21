@@ -11,7 +11,7 @@ var CID = require('can-cid');
 
 var assign = require("can-util/js/assign/assign");
 var queues = require("can-queues");
-var eventQueue = require("can-event-queue");
+var eventQueue = require("can-event-queue/map/legacy/legacy");
 
 var clone = require("steal-clone");
 var canReflect = require("can-reflect");

@@ -7,7 +7,7 @@ var queues = require("can-queues");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 var KeyTree = require("can-key-tree");
-var eventQueue = require("can-event-queue");
+var eventQueue = require("can-event-queue/map/legacy/legacy");
 
 // a simple observable and compute to test
 // behaviors that require nesting of Observations
