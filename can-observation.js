@@ -13,7 +13,6 @@
 // - can.__observe - All other observes call this method to be visible to computed functions.
 // - can.__notObserve - Returns a function that can not be observed.
 
-var steal = require("@steal");
 var assign = require('can-util/js/assign/assign');
 var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
