@@ -586,7 +586,7 @@ QUnit.test("no handler and queue removes all dependencies", function(){
 	QUnit.equal(observation.handlers.get([]).length, 0);
 });
 
-skipProductionTest("Observation decatores onDependencyChange handler", function(assert) {
+skipProductionTest("Observation decorates onDependencyChange handler", function(assert) {
 	var rootA = simpleObservable("a");
 	var rootB = simpleObservable("b");
 
