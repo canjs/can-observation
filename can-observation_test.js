@@ -13,9 +13,12 @@ var assign = require("can-util/js/assign/assign");
 var queues = require("can-queues");
 var eventQueue = require("can-event-queue/map/legacy/legacy");
 
+var steal = require("@steal");
 var clone = require("steal-clone");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
+
+var skipProductionTest = steal.isEnv("production") ? QUnit.skip : QUnit.test;
 
 QUnit.module('can-observation',{
 	setup: function(){}
@@ -581,4 +584,25 @@ QUnit.test("no handler and queue removes all dependencies", function(){
 	canReflect.offValue(observation);
 
 	QUnit.equal(observation.handlers.get([]).length, 0);
+});
+
+skipProductionTest("Observation decatores onDependencyChange handler", function(assert) {
+	var rootA = simpleObservable("a");
+	var rootB = simpleObservable("b");
+
+	var observation = new Observation(function() {
+		return rootA.get() + rootB.get();
+	});
+
+	var getChangesSymbol = canSymbol.for("can.getChangesDependencyRecord");
+	var getChanges = observation.onDependencyChange[getChangesSymbol].bind(
+		observation
+	);
+
+	assert.equal(typeof getChanges, "function", "symbol should be implemented");
+	assert.deepEqual(
+		getChanges(),
+		{ valueDependencies: new Set([observation]) },
+		"onDependencyChange changes the observation"
+	);
 });
