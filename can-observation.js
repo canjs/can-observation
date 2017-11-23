@@ -17,11 +17,14 @@ var assign = require('can-util/js/assign/assign');
 var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
 var queues = require("can-queues");
-var KeyTree = require("can-key-tree");
 var ObservationRecorder = require("can-observation-recorder");
 var recorderHelpers = require("./recorder-dependency-helpers");
 var canSymbol = require("can-symbol");
 var dev = require("can-log/dev/dev");
+var valueEventBindings = require("can-event-queue/value/value");
+
+var dispatchSymbol = canSymbol.for("can.dispatch");
+var getChangesSymbol = canSymbol.for("can.getChangesDependencyRecord");
 
 function Observation(func, context, options){
 	this.func = func;
@@ -34,7 +37,7 @@ function Observation(func, context, options){
 
 
 	// The event handlers on this observation.
-	this.handlers = new KeyTree([Object, Array],{
+	valueEventBindings.addHandlers(this, {
 		// On the first handler, start the dependency observation.
 		onFirst: this.start.bind(this),
 		// When we have no handlers, stop dependency observation.
@@ -53,6 +56,11 @@ function Observation(func, context, options){
 	this.update = this.update.bind(this);
 
 	//!steal-remove-start
+	this.onDependencyChange[getChangesSymbol] = function getChanges() {
+		return {
+			valueDependencies: new Set([self])
+		};
+	};
 	Object.defineProperty(this.onDependencyChange, "name", {
 		value: canReflect.getName(this) + ".onDependencyChange",
 	});
@@ -62,8 +70,10 @@ function Observation(func, context, options){
 	//!steal-remove-end
 }
 
+// Mixin value event bindings
+valueEventBindings(Observation.prototype);
 
-assign(Observation.prototype,{
+assign(Observation.prototype, {
 	// something is reading the value of this compute
 	get: function(){
 
@@ -105,8 +115,10 @@ assign(Observation.prototype,{
 	dependencyChange: function(context, args){
 		if(this.bound === true) {
 			// No need to flush b/c something in the queue caused this to change
-			queues.deriveQueue.enqueue(this.update, this, [],
-
+			queues.deriveQueue.enqueue(
+				this.update,
+				this,
+				[],
 				{
 					priority: this.options.priority
 					//!steal-remove-start
@@ -124,22 +136,15 @@ assign(Observation.prototype,{
 		}
 	},
 	// Called to update its value as part of the `derive` queue.
-	update: function(){
-		if(this.bound === true) {
+	update: function() {
+		if (this.bound === true) {
 			// Keep the old value.
 			var oldValue = this.value;
 			this.oldValue = null;
 			// Get the new value and register this event handler to any new observables.
 			this.start();
-			if(oldValue !== this.value) {
-				//!steal-remove-start
-				if (typeof this._log === "function") {
-					this._log(oldValue, this.value);
-				}
-				//!steal-remove-end
-				// Call handlers for this observation
-				queues.enqueueByQueue(this.handlers.getNode([]), this, [this.value, oldValue], null,
-				 [canReflect.getName(this), "changed to", this.value, "from", oldValue ]);
+			if (oldValue !== this.value) {
+				this[dispatchSymbol](this.value, oldValue);
 				return true;
 			}
 		}
@@ -214,30 +219,27 @@ assign(Observation.prototype,{
 	}
 });
 
-canReflect.assignSymbols(Observation.prototype,{
-	"can.onValue": function(handler, queueName){
-		this.handlers.add([queueName || "mutate", handler]);
-	},
-	"can.offValue": function(handler, queueName){
-		if(handler === undefined) {
-			if(queueName === undefined) {
-				this.handlers.delete([]);
-			} else {
-				this.handlers.delete([queueName]);
-			}
-		} else {
-			this.handlers.delete([queueName || "mutate", handler]);
-		}
-
-	},
+canReflect.assignSymbols(Observation.prototype, {
 	"can.getValue": Observation.prototype.get,
 	"can.isValueLike": true,
 	"can.isMapLike": false,
 	"can.isListLike": false,
 	"can.valueHasDependencies": Observation.prototype.hasDependencies,
 	"can.getValueDependencies": function(){
-		if(this.bound === true) {
-			return this.newDependencies;
+		if (this.bound === true) {
+			var result = {};
+			var deps = this.newDependencies;
+
+			// prevent empty key dependencies map to be returned
+			if (deps.keyDependencies.size) {
+				result.keyDependencies = deps.keyDependencies;
+			}
+
+			if (deps.valueDependencies.size) {
+				result.valueDependencies = deps.valueDependencies;
+			}
+
+			return result;
 		}
 		return undefined;
 	},
@@ -250,7 +252,7 @@ canReflect.assignSymbols(Observation.prototype,{
 	//!steal-remove-start
 	"can.getName": function() {
 		return canReflect.getName(this.constructor) + "<" + canReflect.getName(this.func) + ">";
-	},
+	}
 	//!steal-remove-end
 });
 
