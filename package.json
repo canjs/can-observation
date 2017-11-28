@@ -44,7 +44,7 @@
     "can-util": "^3.9.0"
   },
   "devDependencies": {
-    "bit-docs": "^0.0.7",
+    "bit-docs": "^0.0.8",
     "detect-cyclic-packages": "^1.1.0",
     "done-serve": "^1.2.0",
     "donejs-cli": "^1.0.1",
