@@ -20,7 +20,8 @@
     "release:major": "npm version major && npm publish",
     "build": "node build.js",
     "develop": "done-serve --static --develop --port 8080",
-    "detect-cycle": "detect-cyclic-packages --ignore done-serve"
+    "detect-cycle": "detect-cyclic-packages --ignore done-serve",
+    "docco": "docco can-observation.js recorder-dependency-helpers.js"
   },
   "main": "can-observation",
   "keywords": [
