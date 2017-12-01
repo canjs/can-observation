@@ -142,11 +142,13 @@ call its internal `.onBound` and `.onUnbound` methods.
 
 When bound for the first time, an observation calls its function between [can-observation-recorder]'s
 [can-observation-recorder.start] and [can-observation-recorder.stop] to see what dependencies have been
-bound.  It then binds those dependencies to 
+bound.  It then uses [recorder-dependency-helpers.js](http://canjs.github.io/can-observation/docs/recorder-dependency-helpers.html) to bind those dependencies to it's `dependencyChange` method.
 
-- when bound for the 1st time.
-  - calls `fn` between can-observation-recorder.onBound / stop to see what
-    observables call OR.add.
-  - Binds to those using recorder-dependency-helpers
-    - when a change happens, adds itself to the notify queue
-      - repeats process
+When a dependency change happens, an observation adds its `.update` method to the __derive__ [can-queues].
+When the `.update` happens, it repeats the process in the above paragraph, binding and unbind to whatever dependencies are
+found with   [can-observation-recorder.start] and [can-observation-recorder.stop].
+
+[How it works: can-observation and can-observation-recorder](https://www.youtube.com/watch?v=UIhB-zXR5Yg)
+covers how `can-observation` works.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/UIhB-zXR5Yg" frameborder="0" allowfullscreen></iframe>
