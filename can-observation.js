@@ -1,4 +1,4 @@
-/* global setTimeout, require */
+/* global require */
 // # can-observation
 var namespace = require('can-namespace');
 var canReflect = require('can-reflect');
@@ -269,7 +269,7 @@ var alias = {addAll: "addMany"};
 		var name = alias[methodName] ? alias[methodName] : methodName;
 		console.warn("can-observation: Call "+name+"() on can-observation-recorder.");
 		return ObservationRecorder[name].apply(this, arguments);
-	}
+	};
 });
 Observation.prototype.start = function(){
 	console.warn("can-observation: Use .on and .off to bind.");
