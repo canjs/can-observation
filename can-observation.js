@@ -166,14 +166,6 @@ canReflect.assign(Observation.prototype, {
 			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
 			undefined;
 	},
-	/**
-	 * @function can-observation.prototype.log log
-	 * @parent can-observation.prototype prototype
-	 *
-	 * @signature `observation.log()`
-	 *
-	 * Turns on logging of changes to the browser console.
-	 */
 	log: function() {
 		//!steal-remove-start
 		var quoteString = function quoteString(x) {

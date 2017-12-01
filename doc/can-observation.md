@@ -2,7 +2,6 @@
 @parent can-observables
 @collection can-infrastructure
 @group can-observation.prototype prototype
-@group can-observation.types types
 @package ../package.json
 
 Create observable values that derive their value from other observable
@@ -51,7 +50,10 @@ person.first = "Bodhi";
 ## Use Cases
 
 `can-observation` is used to derive values from other values without
-having to explicitly bind.  
+having to explicitly bind.   This is used many places within CanJS:
+
+- [can-define] `getters` that cache their value.
+- [can-stache]'s live binding.
 
 ## Use
 
@@ -68,7 +70,7 @@ import observe from "can-observe";
 
 var person = observe({first: "Ramiya", last: "Meyer"});
 
-var fullName = new Observation(function(){
+var fullName = new Observation(function fullName(){
     return person.first + " " + person.last;
 });
 
@@ -83,11 +85,68 @@ person.first = "Bodhi";
 
 Use [can-observation.prototype.off] to unbind.  
 
+## Debugging
+
+
+#### Naming Functions
+
+Observations [can-observation.prototype.can.getName name themselves] using the name of the
+function passed to them. If you are using a `can-observation` directly, you should make sure the
+function has a meaningful name.  
+
+This can be done by using [function declarations](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function) like:
+
+```js
+var fullName = new Observation(function fullName(){
+    return person.first + " " + person.last;
+});
+```
+
+Instead of:
+
+```js
+var fullName = new Observation(function(){
+    return person.first + " " + person.last;
+});
+```
+
+You can also name functions as follows:
+
+```js
+//!steal-remove-start
+var fn = function(){ ... };
+Object.defineProperty(fn, "name", {
+    value: "some meaningful name",
+});
+//!steal-remove-end
+```
+
+#### can-queues
+
+If you use [can-queues] to debug, it's likely you'll see something like:
+
+<pre>
+NOTIFY running  : Observation&lt;fullName&gt;.onDependencyChange &#x25B6; { ... }
+DERIVE running  : Observation&lt;fullName&gt;.update &#x25B6; { ... }
+</pre>
+
+These tasks are when an observation noticed a dependency has changed and when it began to update
+its value. If you expand the task object (<code>&#x25B6; { ... }</code>), you should be able to see
+exactly which dependency caused the observation to update.
+
+
 ## How it works
 
+`can-observation` uses [can-event-queue/value/value] to implement its `.on`, `.off` methods and
+call its internal `.onBound` and `.onUnbound` methods.
+
+When bound for the first time, an observation calls its function between [can-observation-recorder]'s
+[can-observation-recorder.start] and [can-observation-recorder.stop] to see what dependencies have been
+bound.  It then binds those dependencies to 
+
 - when bound for the 1st time.
-  - calls `fn` between can-observation-recorder.start / stop to see what
+  - calls `fn` between can-observation-recorder.onBound / stop to see what
     observables call OR.add.
   - Binds to those using recorder-dependency-helpers
     - when a change happens, adds itself to the notify queue
-      - repeats process 
+      - repeats process
