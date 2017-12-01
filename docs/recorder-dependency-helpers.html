@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Recorder Dependency Helpers</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+  <link rel="stylesheet" media="all" href="docco.css" />
+</head>
+<body>
+  <div id="container">
+    <div id="background"></div>
+    
+      <ul id="jump_to">
+        <li>
+          <a class="large" href="javascript:void(0);">Jump To &hellip;</a>
+          <a class="small" href="javascript:void(0);">+</a>
+          <div id="jump_wrapper">
+          <div id="jump_page_wrapper">
+            <div id="jump_page">
+              
+                
+                <a class="source" href="can-observation.html">
+                  can-observation.js
+                </a>
+              
+                
+                <a class="source" href="recorder-dependency-helpers.html">
+                  recorder-dependency-helpers.js
+                </a>
+              
+                
+                <a class="source" href="temporarily-bind.html">
+                  temporarily-bind.js
+                </a>
+              
+            </div>
+          </div>
+        </li>
+      </ul>
+    
+    <ul class="sections">
+        
+        
+        
+        <li id="section-1">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-1">&#182;</a>
+              </div>
+              <h1 id="recorder-dependency-helpers">Recorder Dependency Helpers</h1>
+<p>This exposes two helpers:</p>
+<ul>
+<li><code>updateObservations</code> - binds and unbinds a diff of two observation records
+(see can-observation-recorder for details on this data type).</li>
+<li><code>stopObserving</code> - unbinds an observation record.</li>
+</ul>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-keyword">var</span> canReflect = <span class="hljs-built_in">require</span>(<span class="hljs-string">"can-reflect"</span>);</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-2">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-2">&#182;</a>
+              </div>
+              <h2 id="helpers">Helpers</h2>
+<p>The following helpers all use <code>this</code> to pass additional arguments. This
+is for performance reasons as it avoids creating new functions.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">addNewKeyDependenciesIfNotInOld</span>(<span class="hljs-params">event</span>) </span>{</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-3">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-3">&#182;</a>
+              </div>
+              <p>Expects <code>this</code> to have:</p>
+<ul>
+<li><code>.observable</code> - the observable we might be binding to.</li>
+<li><code>.oldEventSet</code> - the bound keys on the old dependency record for <code>observable</code>.</li>
+<li><code>.onDependencyChange</code> - the handler we will call back when the key is changed.
+If there wasn’t any keys, or when we tried to delete we couldn’t because the key
+wasn’t in the set, start binding.</li>
+</ul>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.oldEventSet === <span class="hljs-literal">undefined</span> || <span class="hljs-keyword">this</span>.oldEventSet[<span class="hljs-string">"delete"</span>](event) === <span class="hljs-literal">false</span>) {
+        canReflect.onKeyValue(<span class="hljs-keyword">this</span>.observable, event, <span class="hljs-keyword">this</span>.onDependencyChange,<span class="hljs-string">"notify"</span>);
+    }
+}</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-4">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-4">&#182;</a>
+              </div>
+              <h3 id="addobservablesnewkeydependenciesifnotinold">addObservablesNewKeyDependenciesIfNotInOld</h3>
+<p>For each event in the <code>eventSet</code> of new observables,
+setup a binding (or delete the key).</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">addObservablesNewKeyDependenciesIfNotInOld</span>(<span class="hljs-params">eventSet, observable</span>)</span>{
+    eventSet.forEach(addNewKeyDependenciesIfNotInOld, {
+        <span class="hljs-attr">onDependencyChange</span>: <span class="hljs-keyword">this</span>.onDependencyChange,
+        <span class="hljs-attr">observable</span>: observable,
+        <span class="hljs-attr">oldEventSet</span>: <span class="hljs-keyword">this</span>.oldDependencies.keyDependencies.get(observable)
+    });
+}
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">removeKeyDependencies</span>(<span class="hljs-params">event</span>) </span>{
+    canReflect.offKeyValue(<span class="hljs-keyword">this</span>.observable, event, <span class="hljs-keyword">this</span>.onDependencyChange,<span class="hljs-string">"notify"</span>);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">removeObservablesKeyDependencies</span>(<span class="hljs-params">oldEventSet, observable</span>)</span>{
+    oldEventSet.forEach(removeKeyDependencies, {<span class="hljs-attr">onDependencyChange</span>: <span class="hljs-keyword">this</span>.onDependencyChange, <span class="hljs-attr">observable</span>: observable});
+}
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">addValueDependencies</span>(<span class="hljs-params">observable</span>) </span>{</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-5">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-5">&#182;</a>
+              </div>
+              <p>If we were unable to delete the key in the old set, setup a binding.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.oldDependencies.valueDependencies.delete(observable) === <span class="hljs-literal">false</span>) {
+        canReflect.onValue(observable, <span class="hljs-keyword">this</span>.onDependencyChange,<span class="hljs-string">"notify"</span>);
+    }
+}
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">removeValueDependencies</span>(<span class="hljs-params">observable</span>) </span>{
+    canReflect.offValue(observable, <span class="hljs-keyword">this</span>.onDependencyChange,<span class="hljs-string">"notify"</span>);
+}
+
+
+<span class="hljs-built_in">module</span>.exports = {</pre></div></div>
+            
+        </li>
+        
+        
+        <li id="section-6">
+            <div class="annotation">
+              
+              <div class="pilwrap ">
+                <a class="pilcrow" href="#section-6">&#182;</a>
+              </div>
+              <h2 id="updateobservations">updateObservations</h2>
+<p>Binds <code>observationData.onDependencyChange</code> to dependencies in <code>observationData.newDependencies</code> that are not currently in
+<code>observationData.oldDependencies</code>.  Anything in <code>observationData.oldDependencies</code>
+left over is unbound.</p>
+<p>The algorthim works by:</p>
+<ol>
+<li>Loop through the <code>new</code> dependencies, checking if an equivalent is in the <code>old</code> bindings.<ul>
+<li>If there is an equivalent binding, delete that dependency from <code>old</code>.</li>
+<li>If there is <strong>not</strong> an equivalent binding, setup a binding from that dependency to <code>.onDependencyChange</code>.</li>
+</ul>
+</li>
+<li>Loop through the remaining <code>old</code> dependencies, teardown bindings.</li>
+</ol>
+<p>For performance, this method mutates the values in <code>.oldDependencies</code>.</p>
+
+            </div>
+            
+            <div class="content"><div class='highlight'><pre>    updateObservations: <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">observationData</span>)</span>{
+        observationData.newDependencies.keyDependencies.forEach(addObservablesNewKeyDependenciesIfNotInOld, observationData);
+        observationData.oldDependencies.keyDependencies.forEach(removeObservablesKeyDependencies, observationData);
+        observationData.newDependencies.valueDependencies.forEach(addValueDependencies, observationData);
+        observationData.oldDependencies.valueDependencies.forEach(removeValueDependencies, observationData);
+    },
+    <span class="hljs-attr">stopObserving</span>: <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">observationReciever, onDependencyChange</span>)</span>{
+        observationReciever.keyDependencies.forEach(removeObservablesKeyDependencies, {<span class="hljs-attr">onDependencyChange</span>: onDependencyChange});
+        observationReciever.valueDependencies.forEach(removeValueDependencies, {<span class="hljs-attr">onDependencyChange</span>: onDependencyChange});
+    }
+};</pre></div></div>
+            
+        </li>
+        
+    </ul>
+  </div>
+</body>
+</html>
