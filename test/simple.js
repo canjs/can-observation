@@ -1,20 +1,20 @@
 var Observation = require('can-observation');
 var CID = require('can-cid');
 
-var assign = require("can-util/js/assign/assign");
 var queues = require("can-queues");
 
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 var KeyTree = require("can-key-tree");
 var eventQueue = require("can-event-queue/map/legacy/legacy");
+var ObservationRecorder = require("can-observation-recorder");
 
 // a simple observable and compute to test
 // behaviors that require nesting of Observations
 var simpleObservable = function(value){
 	var obs = {
 		get: function(){
-			Observation.add(this, "value");
+			ObservationRecorder.add(this, "value");
 			return this.value;
 		},
 		set: function(value){
@@ -50,7 +50,7 @@ var simpleCompute = function(getter, name, primaryDepth){
 		onFirst: function(){
 			fn.bound = true;
 			canReflect.onValue(observation, dispatchEvents)
-			observation.start();
+			observation.onBound();
 		},
 		onEmpty: function(){
 			fn.bound = false;
@@ -61,7 +61,7 @@ var simpleCompute = function(getter, name, primaryDepth){
 
 
 	fn = function(){
-		Observation.add(fn,"change");
+		ObservationRecorder.add(fn,"change");
 		return observation.get();
 	};
 	CID(fn, name);
@@ -78,7 +78,7 @@ var simpleCompute = function(getter, name, primaryDepth){
 		}
 	});
 
-	assign(fn, {
+	canReflect.assign(fn, {
 		"addEventListener": function(key, handler){
 			handlers.add(["event", "mutate", handler]);
 		},
@@ -102,7 +102,7 @@ var reflectiveCompute = function(getter, name){
 		fn;
 
 	fn = function(){
-		Observation.add(fn);
+		ObservationRecorder.add(fn);
 		return observation.get();
 	};
 	CID(fn, name);
@@ -130,7 +130,7 @@ var reflectiveValue = function(value){
 				return {};
 			});
 		} else {
-			Observation.add(fn);
+			ObservationRecorder.add(fn);
 			return value;
 		}
 	};
@@ -147,7 +147,7 @@ var reflectiveValue = function(value){
 var reflectiveObservable = function(value){
 	var obs = {
 		get: function(){
-			Observation.add(this, "value");
+			ObservationRecorder.add(this, "value");
 			return this.value;
 		},
 		set: function(value){

@@ -5,16 +5,15 @@ var simpleCompute = simple.compute;
 var reflectiveValue = simple.reflectiveValue;
 var reflectiveObservable = simple.reflectiveObservable;
 
+var ObservationRecorder = require("can-observation-recorder");
 var Observation = require('can-observation');
 var QUnit = require('steal-qunit');
 var CID = require('can-cid');
 
-var assign = require("can-util/js/assign/assign");
 var queues = require("can-queues");
 var eventQueue = require("can-event-queue/map/legacy/legacy");
 
 var steal = require("@steal");
-var clone = require("steal-clone");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 
@@ -45,16 +44,16 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 
 	var oi = new Observation(function() {
 
-		var getObserves1 = Observation.trap();
+		var getObserves1 = ObservationRecorder.trap();
 
-		Observation.add(obs1, "value");
+		ObservationRecorder.add(obs1, "value");
 
-		var getObserves2 = Observation.trap();
-		Observation.add(obs2, "value");
+		var getObserves2 = ObservationRecorder.trap();
+		ObservationRecorder.add(obs2, "value");
 
 		var observes2 = getObserves2();
 
-		Observation.addAll(observes2);
+		ObservationRecorder.addMany(observes2);
 
 		var observes1 = getObserves1();
 
@@ -64,7 +63,7 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 	});
 	//canReflect.onValue(oi, function(){})
 
-	oi.start();
+	oi.onBound();
 });
 
 
@@ -256,7 +255,7 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 		return root.get();
 	},'sideCompute');
 
-	var dummyObject = assign({}, eventQueue);
+	var dummyObject = canReflect.assign({}, eventQueue);
 	dummyObject.on("dummyEvent", function dummyEvenHandler(){});
 
 	var computeThatGoesSideways = simpleCompute(function computeThatGoesSidewaysHandler(){
@@ -318,38 +317,17 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 
 });
 
-QUnit.test('should throw if can-namespace.Observation is already defined', function() {
-	stop();
-	clone({
-		'can-namespace': {
-			default: {
-				Observation: {}
-			},
-			__useDefault: true
-		}
-	})
-	.import('can-observation')
-	.then(function() {
-		ok(false, 'should throw');
-		start();
-	})
-	.catch(function(err) {
-		var errMsg = err && err.message || err;
-		ok(errMsg.indexOf('can-observation') >= 0, 'should throw an error about can-observation');
-		start();
-	});
-});
 
 
 QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(){
-	var obs1 = assign({prop1: 1}, eventQueue);
+	var obs1 = canReflect.assign({prop1: 1}, eventQueue);
     CID(obs1);
-    var obs2 = assign({prop2: 2}, eventQueue);
+    var obs2 = canReflect.assign({prop2: 2}, eventQueue);
     CID(obs2);
 
 	var observation = new Observation(function observationEval() {
-		Observation.add(obs1, "prop1");
-		Observation.add(obs2, "prop2");
+		ObservationRecorder.add(obs1, "prop1");
+		ObservationRecorder.add(obs2, "prop2");
 		return obs1.prop1 + obs2.prop2;
 	});
 
@@ -396,7 +374,7 @@ QUnit.test("should not throw if offValue is called without calling onValue" , fu
 
 QUnit.test("getValueDependencies work with can-reflect", function() {
 
-	var obs1 = assign({prop1: 1}, eventQueue);
+	var obs1 = canReflect.assign({prop1: 1}, eventQueue);
     CID(obs1);
     var obs2 = function() {
 			return 2;
@@ -410,15 +388,15 @@ QUnit.test("getValueDependencies work with can-reflect", function() {
 
 	var observation = new Observation(function() {
 
-		Observation.add(obs1, "prop1");
-		Observation.add(obs2);
+		ObservationRecorder.add(obs1, "prop1");
+		ObservationRecorder.add(obs2);
 		return obs1.prop1 + obs2();
 	});
 
 	var deps = canReflect.getValueDependencies(observation);
 	QUnit.equal(deps, undefined, "getValueDependencies undefined for unstarted observation");
 
-	observation.start();
+	observation.onBound();
 	deps = canReflect.getValueDependencies(observation);
 	QUnit.ok(
 		deps.keyDependencies.has(obs1),
@@ -560,19 +538,19 @@ QUnit.test("log observable changes", function(assert) {
 	};
 
 	var observation = new Observation(function() {
-		Observation.add(name, "value");
+		ObservationRecorder.add(name, "value");
 		return name.get();
 	});
 
 	observation.log();
-	observation.start();
+	observation.onBound();
 	name.set("Charles Babbage");
 });
 
 QUnit.test("no handler and queue removes all dependencies", function(){
 	var name = simpleObservable("John Doe");
 	var observation = new Observation(function() {
-		Observation.add(name, "value");
+		ObservationRecorder.add(name, "value");
 		return name.get();
 	});
 

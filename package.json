@@ -21,7 +21,7 @@
     "build": "node build.js",
     "develop": "done-serve --static --develop --port 8080",
     "detect-cycle": "detect-cyclic-packages --ignore done-serve",
-    "docco": "docco can-observation.js recorder-dependency-helpers.js"
+    "docco": "docco can-observation.js recorder-dependency-helpers.js temporarily-bind.js"
   },
   "main": "can-observation",
   "keywords": [
@@ -43,8 +43,7 @@
     "can-observation-recorder": "<2.0.0",
     "can-queues": "<2.0.0",
     "can-reflect": "^1.7.0",
-    "can-symbol": "^1.4.2",
-    "can-util": "^3.9.0"
+    "can-symbol": "^1.4.2"
   },
   "devDependencies": {
     "bit-docs": "^0.0.7",

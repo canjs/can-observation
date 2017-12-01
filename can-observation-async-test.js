@@ -23,7 +23,7 @@ QUnit.module('can-observation async',{
 var simpleObservable = function(value){
 	var obs = {
 		get: function(){
-			Observation.add(this, "value");
+			ObservationRecorder.add(this, "value");
 			return this.value;
 		},
 		set: function(value){
@@ -42,7 +42,7 @@ var simpleCompute = function(getter, name, primaryDepth){
 	var observation, fn;
 
 	fn = function(){
-		Observation.add(fn,"change");
+		ObservationRecorder.add(fn,"change");
 		return observation.get();
 	};
 	CID(fn, name);
@@ -78,16 +78,16 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 
 	var oi = new Observation(function() {
 
-		var getObserves1 = Observation.trap();
+		var getObserves1 = ObservationRecorder.trap();
 
-		Observation.add(obs1, "prop1");
+		ObservationRecorder.add(obs1, "prop1");
 
-		var getObserves2 = Observation.trap();
-		Observation.add(obs2, "prop2");
+		var getObserves2 = ObservationRecorder.trap();
+		ObservationRecorder.add(obs2, "prop2");
 
 		var observes2 = getObserves2();
 
-		Observation.addAll(observes2);
+		ObservationRecorder.addMany(observes2);
 
 		var observes1 = getObserves1();
 
