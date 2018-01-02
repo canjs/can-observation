@@ -41,7 +41,7 @@
     "can-log": "^0.1.0",
     "can-namespace": "1.0.0",
     "can-observation-recorder": "<2.0.0",
-    "can-queues": "<2.0.0",
+    "can-queues": "^0.5.0-pre.0",
     "can-reflect": "^1.7.0",
     "can-symbol": "^1.4.2"
   },

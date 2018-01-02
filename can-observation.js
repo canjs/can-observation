@@ -20,7 +20,7 @@ var getValueDependenciesSymbol = canSymbol.for("can.getValueDependencies");
 function Observation(func, context, options){
 	this.func = func;
 	this.context = context;
-	this.options = options || {priority: 0, isObservable: true};
+	this.options = options || {priority: Infinity, isObservable: true};
 	// A flag if we are bound or not
 	this.bound = false;
 
@@ -90,7 +90,7 @@ canReflect.assign(Observation.prototype, {
 				this,
 				[],
 				{
-					priority: this.options.priority
+					priority: canReflect.getPriority(this)
 					//!steal-remove-start
 					/* jshint laxcomma: true */
 					, log: [ canReflect.getName(this.update) ]
@@ -143,7 +143,6 @@ canReflect.assign(Observation.prototype, {
 			}
 
 		}
-
 
 		if(this.bound === true ) {
 			// It's possible that a child dependency of this observable might be queued
@@ -216,7 +215,8 @@ canReflect.assignSymbols(Observation.prototype, {
 		return undefined;
 	},
 	"can.getPriority": function(){
-		return this.options.priority;
+		var priority = this.options.priority;
+		return priority === undefined ? Infinity : priority;
 	},
 	"can.setPriority": function(priority){
 		this.options.priority = priority;

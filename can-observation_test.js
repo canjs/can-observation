@@ -584,3 +584,39 @@ skipProductionTest("Observation decorates onDependencyChange handler", function(
 		"onDependencyChange changes the observation"
 	);
 });
+
+QUnit.test("Does not re-call observations that are not being observed", function(){
+	var bar = simpleObservable("bar");
+	var show = simpleObservable(true);
+
+	var calls = 0;
+	var foo = new Observation(function foo(){
+		calls++;
+		return bar.get();
+	});
+
+	var liveFoo = new Observation(function liveFoo(){
+		return foo.get();
+	}, null, { priority: 1 });
+
+	var block = new Observation(function block(){
+		if(show.get()) {
+			liveFoo.get();
+		}
+	}, null, { priority: 1 });
+
+	//Temporarily bind to foo to avoid Observation.temporarilyBind async behavior
+	var onFooChange = function(){};
+	canReflect.onValue(foo, onFooChange);
+	canReflect.onValue(block, function(){});
+	canReflect.offValue(foo, onFooChange);
+
+	canReflect.setPriority(liveFoo, 2);
+
+	queues.batch.start();
+	show.set(false);
+	bar.set(undefined);
+	queues.batch.stop();
+
+	QUnit.equal(calls, 1, "Was only called the one time");
+});
