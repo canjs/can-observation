@@ -6,7 +6,7 @@ var queues = require("can-queues");
 var canReflect = require("can-reflect");
 var canSymbol = require("can-symbol");
 var KeyTree = require("can-key-tree");
-var eventQueue = require("can-event-queue/map/legacy/legacy");
+var eventQueue = require("can-event-queue/map/map");
 var ObservationRecorder = require("can-observation-recorder");
 
 // a simple observable and compute to test

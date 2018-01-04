@@ -11,7 +11,7 @@ var QUnit = require('steal-qunit');
 var CID = require('can-cid');
 
 var queues = require("can-queues");
-var eventQueue = require("can-event-queue/map/legacy/legacy");
+var eventQueue = require("can-event-queue/map/map");
 
 var steal = require("@steal");
 var canReflect = require("can-reflect");
