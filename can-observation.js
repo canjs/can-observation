@@ -319,7 +319,7 @@ assign(Observation.prototype,{
 	 *
 	 */
 });
-
+ 
 /**
  * @typedef {{}} can-observation.observed Observed
  * @parent can-observation.types
