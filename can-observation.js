@@ -1,167 +1,143 @@
-/* global setTimeout, require */
-// # can-observation - nice
-//
-// This module:
-//
-// Exports a function that calls an arbitrary function and binds to any observables that
-// function reads. When any of those observables change, a callback function is called.
-//
-// And ...
-//
-// Adds two main methods to can:
-//
-// - can.__observe - All other observes call this method to be visible to computed functions.
-// - can.__notObserve - Returns a function that can not be observed.
-require('can-event');
-
-var canEvent = require('can-event');
-var canBatch = require('can-event/batch/batch');
-var assign = require('can-util/js/assign/assign');
-var isEmptyObject = require('can-util/js/is-empty-object/is-empty-object');
+/* global require */
+// # can-observation
 var namespace = require('can-namespace');
-var canLog = require('can-util/js/log/log');
 var canReflect = require('can-reflect');
-var canSymbol = require('can-symbol');
-var CID = require("can-cid");
-var CIDMap = require("can-util/js/cid-map/cid-map");
-var CIDSet = require("can-util/js/cid-set/cid-set");
+var queues = require("can-queues");
+var ObservationRecorder = require("can-observation-recorder");
 
-/**
- * @module {constructor} can-observation
- * @parent can-observables
- * @collection can-infrastructure
- * @group can-observation.prototype prototype
- * @group can-observation.static static
- * @group can-observation.types types
- * @package ./package.json
- *
- * Provides a mechanism to notify when an observable has been read and a
- * way to observe those reads called within a given function.
- *
- * @signature `new Observation(func, context, compute)`
- *
- * Creates an observation of a given function called with `this` as
- * a given context. Calls back `compute` when the return value of `func` changes.
- *
- * @param {function} func The function whose value is being observed.
- * @param {*} context What `this` should be when `func` is called.
- * @param {function(*,*,Number)|can-compute} updated(newValue, oldValue, batchNum) A function to call when `func`'s return value changes.
- *
- * @body
- *
- * ## Use
- *
- * Instances of `Observation` are rarely created directly.  Instead, use [can-compute]'s more friendly API to
- * observe when a function's value changes. [can-compute] uses `can-observation` internally.
- *
- * `Observation`'s static methods like: [can-observation.add], [can-observation.ignore], and [can-observation.trap]
- * are used more commonly to control which observable events a compute will listen to.
- *
- * To use `can-observation` directly, create something observable (supports `addEventListener`) and
- * calls [can-observation.add] like:
- *
- * ```js
- * var Observation = require("can-observation");
- * var assign = require("can-util/js/assign/assign");
- * var canEvent = require("can-event");
- *
- * var me = assign({}, canEvent);
- *
- * var name = "Justin";
- * Object.defineProperty(me,"name",{
- *   get: function(){
- *     Observation.add(this,"name");
- *     return name;
- *   },
- *   set: function(newVal) {
- *     var oldVal = name;
- *     name = newVal;
- *     this.dispatch("name", newVal, oldVal);
- *   }
- * })
- * ```
- *
- * Next, create an observation instance with a function that reads the observable value:
- *
- * ```js
- * var observation = new Observation(function(){
- *   return "Hello "+me.name;
- * }, null, function(newVal, oldVal, batchNum){
- *   console.log(newVal);
- * })
- * ```
- *
- * Finally, call `observation.start()` to start listening and be notified of changes:
- *
- * ```js
- * observation.start();
- * observation.value   //-> "Hello Justin";
- * me.name = "Ramiya"; // console.logs -> "Hello Ramiya"
- * ```
- */
+var canSymbol = require("can-symbol");
+var dev = require("can-log/dev/dev");
+var valueEventBindings = require("can-event-queue/value/value");
 
+var recorderHelpers = require("./recorder-dependency-helpers");
+var temporarilyBind = require("./temporarily-bind");
 
+var dispatchSymbol = canSymbol.for("can.dispatch");
+var getChangesSymbol = canSymbol.for("can.getChangesDependencyRecord");
+var getValueDependenciesSymbol = canSymbol.for("can.getValueDependencies");
 
-function Observation(func, context, compute){
-	this.newObserved = {};
-	this.oldObserved = null;
+// ## Observation constructor
+function Observation(func, context, options){
 	this.func = func;
 	this.context = context;
-	this.compute = compute && (compute.updater || ("isObservable" in compute)) ? compute : {updater: compute};
-	this.isObservable = typeof compute === "object" ? compute.isObservable : true;
-	var observation = this;
-	this.onDependencyChange = function(value, legacyValue){
-		observation.dependencyChange(this, value, legacyValue);
+	this.options = options || {priority: 0, isObservable: true};
+	// A flag if we are bound or not
+	this.bound = false;
+
+	// These properties will manage what our new and old dependencies are.
+	this.newDependencies = ObservationRecorder.makeDependenciesRecord();
+	this.oldDependencies = null;
+
+	// Make functions we need to pass around and maintain `this`.
+	var self = this;
+	this.onDependencyChange = function(newVal){
+		self.dependencyChange(this, newVal);
 	};
-	this.ignore = 0;
-	this.needsUpdate = false;
-	this.handlers = null;
-	CID(this);
+	this.update = this.update.bind(this);
+
+
+	// Add debugging names.
+	//!steal-remove-start
+	this.onDependencyChange[getChangesSymbol] = function getChanges() {
+		return {
+			valueDependencies: new Set([self])
+		};
+	};
+	Object.defineProperty(this.onDependencyChange, "name", {
+		value: canReflect.getName(this) + ".onDependencyChange",
+	});
+	Object.defineProperty(this.update, "name", {
+		value: canReflect.getName(this) + ".update",
+	});
+	//!steal-remove-end
 }
 
-// ### observationStack
-//
-// This is the stack of all `observation` objects that are the result of
-// recursive `getValueAndBind` calls.
-// `getValueAndBind` can indirectly call itself anytime a compute reads another
-// compute.
-//
-// An `observation` entry looks like:
-//
-//     {
-//       observed: {
-//         "map1|first": {obj: map, event: "first"},
-//         "map1|last" : {obj: map, event: "last"}
-//       },
-//       names: "map1|firstmap1|last"
-//     }
-//
-// Where:
-// - `observed` is a map of `"cid|event"` to the observable and event.
-//   We use keys like `"cid|event"` to quickly identify if we have already observed this observable.
-// - `names` is all the keys so we can quickly tell if two observation objects are the same.
-var observationStack = [];
-// expose the obseravation stack
-Observation.observationStack = observationStack;
+// ## Observation prototype methods
 
-var remaining = {updates: 0, notifications: 0};
-// expose the remaining state
-Observation.remaining = remaining;
+// Mixin value event bindings. This is where the following are added:
+// - `.handlers` which call `onBound` and `onUnbound`
+// - `.on` / `.off`
+// - `can.onValue` `can.offValue`
+// - `can.getWhatIChange`
+valueEventBindings(Observation.prototype);
 
-assign(Observation.prototype,{
-	// something is reading the value of this compute
+canReflect.assign(Observation.prototype, {
+	// Starts observing changes and adds event listeners.
+	onBound: function(){
+		this.bound = true;
+
+		// Store the old dependencies
+		this.oldDependencies = this.newDependencies;
+		// Start recording dependencies.
+		ObservationRecorder.start();
+		// Call the observation's function and update the new value.
+		this.value = this.func.call(this.context);
+		// Get the new dependencies.
+		this.newDependencies = ObservationRecorder.stop();
+
+		// Diff and update the bindings. On change, everything will call
+		// `this.onDependencyChange`, which calls `this.dependencyChange`.
+		recorderHelpers.updateObservations(this);
+	},
+	// This is called when any of the dependencies change.
+	// It queues up an update in the `deriveQueue` to be run after all source
+	// observables have had time to notify all observables that "derive" their value.
+	dependencyChange: function(context, args){
+		if(this.bound === true) {
+			// Update this observation after all `notify` tasks have been run.
+			queues.deriveQueue.enqueue(
+				this.update,
+				this,
+				[],
+				{
+					priority: this.options.priority
+					//!steal-remove-start
+					/* jshint laxcomma: true */
+					, log: [ canReflect.getName(this.update) ]
+					/* jshint laxcomma: false */
+					//!steal-remove-end
+				}
+				//!steal-remove-start
+				/* jshint laxcomma: true */
+				, [canReflect.getName(context), "changed"]
+				/* jshint laxcomma: false */
+				//!steal-remove-end
+			);
+		}
+	},
+	// Called to update its value as part of the `derive` queue.
+	update: function() {
+		if (this.bound === true) {
+			// Keep the old value.
+			var oldValue = this.value;
+			this.oldValue = null;
+			// Re-run `this.func` and update dependency bindings.
+			this.onBound();
+			// If our value changed, call the `dispatch` method provided by `can-event-queue/value/value`.
+			if (oldValue !== this.value) {
+				this[dispatchSymbol](this.value, oldValue);
+			}
+		}
+	},
+	// Called when nothing is bound to this observation.
+	// Removes all event listeners on all dependency observables.
+	onUnbound: function(){
+		this.bound = false;
+		recorderHelpers.stopObserving(this.newDependencies, this.onDependencyChange);
+		// Setup newDependencies in case someone binds again to this observable.
+		this.newDependencies = ObservationRecorder.makeDependenciesRecorder();
+	},
+	// Reads the value of the observation.
 	get: function(){
 
 		// If an external observation is tracking observables and
 		// this compute can be listened to by "function" based computes ....
-		// This doesn't happen with observations within computes
-		if( this.isObservable && Observation.isRecording() ) {
-
+		if( this.options.isObservable && ObservationRecorder.isRecording() ) {
 
 			// ... tell the tracking compute to listen to change on this observation.
-			Observation.add(this);
+			ObservationRecorder.add(this);
 			// ... if we are not bound, we should bind so that
-			// we don't have to re-read to get the value of this compute.
+			// we don't have to re-read to get the value of this observation.
 			if (!this.bound) {
 				Observation.temporarilyBind(this);
 			}
@@ -169,595 +145,144 @@ assign(Observation.prototype,{
 		}
 
 
-		if(this.bound === true) {
-			// Flush events so this compute should have been notified.
-			// But we want not only update
-			canEvent.flush();
-			// we've already got a value.  However, it might be possible that
-			// something else is going to read this that has a lower "depth".
-			// We might be updating, so we want to make sure that before we give
-			// the outer compute a value, we've had a change to update.;
-			if(remaining.updates > 0) {
+		if(this.bound === true ) {
+			// It's possible that a child dependency of this observable might be queued
+			// to change. Check all child dependencies and make sure they are up-to-date by
+			// possibly running what they have registered in the derive queue.
+			if(queues.deriveQueue.tasksRemainingCount() > 0) {
 				Observation.updateChildrenAndSelf(this);
 			}
 
-
 			return this.value;
 		} else {
+			// If we are not bound, just call the function.
 			return this.func.call(this.context);
 		}
 	},
-	getPrimaryDepth: function() {
-		return this.compute._primaryDepth || 0;
-	},
-	addEdge: function(objEv){
-		if(objEv.event === "undefined") {
-			canReflect.onValue(objEv.obj, this.onDependencyChange);
-		} else {
-			canReflect.onKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
-		}
-	},
-	removeEdge: function(objEv){
-		if(objEv.event === "undefined") {
-			canReflect.offValue(objEv.obj, this.onDependencyChange);
-		} else {
-			canReflect.offKeyValue(objEv.obj, objEv.event, this.onDependencyChange);
-		}
-	},
-	dependencyChange: function(){
-		if(this.bound === true) {
-			// Only need to register once per batchNum
-			if(canBatch.batchNum === undefined || canBatch.batchNum !== this.batchNum) {
-				Observation.registerUpdate(this, canBatch.batchNum);
-				this.batchNum = canBatch.batchNum;
-			}
-		}
-	},
-	onDependencyChange: function(value){
-		this.dependencyChange(value);
-	},
-	update: function(batchNum){
-		if(this.needsUpdate === true) {
-			remaining.updates--;
-		}
-		this.needsUpdate = false;
-		if(this.bound === true) {
-			// Keep the old value.
-			var oldValue = this.value;
-			this.oldValue = null;
-			// Get the new value and register this event handler to any new observables.
-			this.start();
-			if(oldValue !== this.value) {
-				this.compute.updater(this.value, oldValue, batchNum);
-				return true;
-			}
-		}
-	},
-	getValueAndBind: function() {
-		canLog.warn("can-observation: call start instead of getValueAndBind");
-		return this.start();
-	},
-	// ## getValueAndBind
-	// Calls `func` with "this" as `context` and binds to any observables that
-	// `func` reads. When any of those observables change, `onchanged` is called.
-	// `oldObservation` is A map of observable / event pairs this function used to be listening to.
-	// Returns the `newInfo` set of listeners and the value `func` returned.
-	/**
-	 * @function can-observation.prototype.start start
-	 * @parent can-observation.prototype prototype
-	 *
-	 * @signature `observation.start()`
-	 *
-	 * Starts observing changes and adds event listeners. [can-observation.prototype.value] will
-	 * be available.
-	 *
-	 */
-	start: function(){
-		this.bound = true;
-		this.oldObserved = this.newObserved || {};
-		this.ignore = 0;
-		this.newObserved = {};
 
-		// Add this function call's observation to the stack,
-		// runs the function, pops off the observation, and returns it.
-
-		observationStack.push(this);
-		this.value = this.func.call(this.context);
-		observationStack.pop();
-		this.updateBindings();
-	},
-	// ### updateBindings
-	// Unbinds everything in `oldObserved`.
-	updateBindings: function(){
-		var newObserved = this.newObserved,
-			oldObserved = this.oldObserved,
-			name,
-			obEv;
-
-		for (name in newObserved) {
-			obEv = newObserved[name];
-			if(!oldObserved[name]) {
-				this.addEdge(obEv);
-			} else {
-				oldObserved[name] = undefined;
-			}
-		}
-		for (name in oldObserved) {
-			obEv = oldObserved[name];
-			if(obEv !== undefined) {
-				this.removeEdge(obEv);
-			}
-		}
-	},
-	teardown: function(){
-		canLog.warn("can-observation: call stop instead of teardown");
-		return this.stop();
+	hasDependencies: function(){
+		var newDependencies = this.newDependencies;
+		return this.bound ?
+			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
+			undefined;
 	},
 	/**
-	 * @function can-observation.prototype.stop stop
+	 * @function can-observation.prototype.log log
 	 * @parent can-observation.prototype prototype
 	 *
-	 * @signature `observation.stop()`
+	 * @signature `observation.log()`
 	 *
-	 * Stops observing changes and removes all event listeners.
-	 *
+	 * Turns on logging of changes to the browser console.
 	 */
-	stop: function(){
-		// track this because events can be in the queue.
-		this.bound = false;
-		for (var name in this.newObserved) {
-			var ob = this.newObserved[name];
-			this.removeEdge(ob);
-		}
-		this.newObserved = {};
+	log: function() {
+		//!steal-remove-start
+		var quoteString = function quoteString(x) {
+			return typeof x === "string" ? JSON.stringify(x) : x;
+		};
+		this._log = function(previous, current) {
+			dev.log(
+				canReflect.getName(this),
+				"\n is  ", quoteString(current),
+				"\n was ", quoteString(previous)
+			);
+		};
+		//!steal-remove-end
 	}
-	/**
-	 * @property {*} can-observation.prototype.value
-	 * @hide
-	 *
-	 * The return value of the function once [can-observation.prototype.start] is called.
-	 *
-	 */
 });
 
-/**
- * @typedef {{}} can-observation.observed Observed
- * @parent can-observation.types
- *
- * @description
- *
- * An object representing an observation.
- *
- * ```js
- * { "obj": map, "event": "prop1" }
- * ```
- *
- * @option {Object} obj The observable object
- * @option {String} event The event, or more likely property, that is being observed.
- */
+canReflect.assignSymbols(Observation.prototype, {
+	"can.getValue": Observation.prototype.get,
+	"can.isValueLike": true,
+	"can.isMapLike": false,
+	"can.isListLike": false,
+	"can.valueHasDependencies": Observation.prototype.hasDependencies,
+	"can.getValueDependencies": function(){
+		if (this.bound === true) {
+			// Only provide `keyDependencies` and `valueDependencies` properties
+			// if there's actually something there.
+			var deps = this.newDependencies,
+				result = {};
 
-
-var updateOrder = [],
-	// the min registered primary depth, this is also the next to be executed.
-	curPrimaryDepth = Infinity,
-	// the max registered primary depth
-	maxPrimaryDepth = 0,
-	currentBatchNum,
-	isUpdating = false;
-
-
-var updateUpdateOrder = function(observation){
-	var primaryDepth = observation.getPrimaryDepth();
-
-	if(primaryDepth < curPrimaryDepth) {
-		curPrimaryDepth = primaryDepth;
-	}
-	if(primaryDepth > maxPrimaryDepth) {
-		maxPrimaryDepth = primaryDepth;
-	}
-
-	var primary = updateOrder[primaryDepth] ||
-		(updateOrder[primaryDepth] = []);
-
-
-	return primary;
-};
-
-Observation.registerUpdate = function(observation, batchNum){
-	// mark as needing an update
-	if( observation.needsUpdate === true ) {
-		return;
-	}
-	remaining.updates++;
-	observation.needsUpdate = true;
-
-	var objs = updateUpdateOrder(observation);
-
-	objs.push(observation);
-};
-
-
-
-// This picks the observation with the smallest "depth" and
-// calls update on it (`currentObservation`).
-// If the `currentObservation` reads another observation with a higher depth (`deeperObservation`),
-// the `deeperObservation` will be updated (via `updateUntil`).
-// If the `currentObservation` reads another observation with a higher primary depth (`deeperPrimaryObservation`),
-// the `deeperPrimaryObservation` will be updated, but not have its callback called
-var afterCallbacks = [];
-/* jshint maxdepth:7*/
-Observation.updateAndNotify = function(ev, batchNum){
-	currentBatchNum = batchNum;
-	if(isUpdating === true){
-		// only allow access at one time to this method.
-		// This is because when calling .update ... that compute should be only able
-		// to cause updates to other computes it directly reads.  It's possible that
-		// reading other computes could call `updateAndNotify` again.
-		// If we didn't return, it's possible that other computes could update unrelated to the
-		// execution flow of the current compute being updated.  This would be very unexpected.
-		return;
-	}
-	isUpdating = true;
-	while(true) {
-		if( curPrimaryDepth <= maxPrimaryDepth ) {
-			var primary = updateOrder[curPrimaryDepth];
-			var lastUpdate = primary && primary.pop();
-			if(lastUpdate !== undefined) {
-				lastUpdate.update(currentBatchNum);
-			} else {
-				curPrimaryDepth++;
+			if (deps.keyDependencies.size) {
+				result.keyDependencies = deps.keyDependencies;
 			}
-		} else {
-			updateOrder = [];
-			curPrimaryDepth = Infinity;
-			maxPrimaryDepth = 0;
-			isUpdating = false;
-			var afterCB = afterCallbacks;
-			afterCallbacks = [];
-			afterCB.forEach(function(cb){
-				cb();
-			});
-			return;
+
+			if (deps.valueDependencies.size) {
+				result.valueDependencies = deps.valueDependencies;
+			}
+
+			return result;
 		}
+		return undefined;
+	},
+	"can.getPriority": function(){
+		return this.options.priority;
+	},
+	"can.setPriority": function(priority){
+		this.options.priority = priority;
+	},
+	//!steal-remove-start
+	"can.getName": function() {
+		return canReflect.getName(this.constructor) + "<" + canReflect.getName(this.func) + ">";
 	}
-};
-canEvent.addEventListener.call(canBatch,"batchEnd", Observation.updateAndNotify);
+	//!steal-remove-end
+});
 
-Observation.afterUpdateAndNotify = function(callback){
-	canBatch.after(function(){
-		// here we know that the events have been fired, everything should
-		// be notified. Now we have to wait until all computes have
-		// finished firing.
-		if(isUpdating === true) {
-			afterCallbacks.push(callback);
-		} else {
-			callback();
-		}
-	});
-};
-
-
-// This is going to recursively check if there's any child compute
-// that .needsUpdate.
-// If there is, we'll update every parent on the way to ourselves.
+// ## Observation.updateChildrenAndSelf
+// This recursively checks if an observation's dependencies might be in the `derive` queue.
+// If it is, we need to update that value so the reading of this value will be correct.
+// This can happen if an observation suddenly switches to depending on something that has higher
+// priority than itself.  We need to make sure that value is completely updated.
 Observation.updateChildrenAndSelf = function(observation){
-	// check if there's children that .needsUpdate
-	if(observation.needsUpdate === true) {
-		return Observation.unregisterAndUpdate(observation);
+	// If the observable has an `update` method and it's enqueued, flush that task immediately so
+	// the value is right.
+	// > NOTE: This only works for `Observation` right now.  We need a way of knowing how
+	// > to find what an observable might have in the `deriveQueue`.
+	if(observation.update !== undefined && queues.deriveQueue.isEnqueued( observation.update ) === true) {
+		// TODO: In the future, we should be able to send log information
+		// to explain why this needed to be updated.
+		queues.deriveQueue.flushQueuedTask(observation.update);
+		return true;
 	}
-	var childHasChanged = false;
-	for(var prop in observation.newObserved) {
-		if(observation.newObserved[prop].obj.observation) {
-			if( Observation.updateChildrenAndSelf(observation.newObserved[prop].obj.observation) ) {
+
+	// If we can get dependency values from this observable ...
+	if(observation[getValueDependenciesSymbol]) {
+		// ... Loop through each dependency and see if any of them (or their children) needed an update.
+		var childHasChanged = false;
+		var valueDependencies = observation[getValueDependenciesSymbol]().valueDependencies || [];
+		valueDependencies.forEach(function(observable){
+			if( Observation.updateChildrenAndSelf( observable ) === true) {
 				childHasChanged = true;
 			}
-		}
-	}
-	if(childHasChanged === true) {
-		return observation.update(currentBatchNum);
-	}
-};
-// the problem with updateTo(observation)
-// is that that the read might never change
-// but the reader might be changing, and wont update itself, but something
-// else will
-Observation.unregisterAndUpdate = function(observation){
-	var primaryDepth = observation.getPrimaryDepth();
-	var primary = updateOrder[primaryDepth];
-	if(primary !== undefined) {
-
-		var index = primary.indexOf(observation);
-		if(index !== -1) {
-			primary.splice(index,1);
-		}
-
-	}
-	return observation.update(currentBatchNum);
-};
-
-
-
-/**
- * @function can-observation.add add
- * @parent can-observation.static
- *
- * Signals that an object's property is being observed, so that any functions
- * that are recording observations will see that this object is a dependency.
- *
- * @signature `Observation.add(obj, event)`
- *
- * Signals that an event should be observed. Adds the observable being read to
- * the top of the stack.
- *
- * ```js
- * Observation.add(obj, "prop1");
- * ```
- *
- * @param {Object} obj An observable object which is being observed.
- * @param {String} event The name of the event (or property) that is being observed.
- *
- */
-Observation.add = function (obj, event) {
-	var top = observationStack[observationStack.length-1];
-	if (top !== undefined && !top.ignore) {
-		var evStr = event + "",
-			name = obj._cid + '|' + evStr;
-
-		if(top.traps !== undefined) {
-			top.traps.push({obj: obj, event: evStr, name: name});
-		}
-		else {
-			top.newObserved[name] = {
-				obj: obj,
-				event: evStr
-			};
-		}
+		});
+		return childHasChanged;
+	} else {
+		return false;
 	}
 };
 
-/**
- * @function can-observation.addAll addAll
- * @parent can-observation.static
- * @signature `Observation.addAll(observes)`
- *
- * The same as `Observation.add` but takes an array of [can-observation.observed] objects.
- * This will most often by used in coordination with [can-observation.trap]:
- *
- * ```js
- * var untrap = Observation.trap();
- *
- * Observation.add(obj, "prop3");
- *
- * var traps = untrap();
- * Oservation.addAll(traps);
- * ```
- *
- * @param {Array<can-observation.observed>} observes An array of [can-observation.observed]s.
- */
-Observation.addAll = function(observes){
-	// a bit more optimized so we don't have to repeat everything in
-	// Observation.add
-	var top = observationStack[observationStack.length-1];
-	if (top !== undefined) {
-		if(top.traps !== undefined) {
-			top.traps.push.apply(top.traps, observes);
-		} else {
-			for(var i =0, len = observes.length; i < len; i++) {
-				var trap = observes[i],
-					name = trap.name;
-
-				if(top.newObserved[name] === undefined) {
-					top.newObserved[name] = trap;
-				}
-			}
-		}
-
-	}
-};
-
-/**
- * @function can-observation.ignore ignore
- * @parent can-observation.static
- * @signature `Observation.ignore(fn)`
- *
- * Creates a function that, when called, will prevent observations from
- * being applied.
- *
- * ```js
- * var fn = Observation.ignore(function(){
- *   // This will be ignored
- *   Observation.add(obj, "prop1");
- * });
- *
- * fn();
- * Observation.trapCount(); // -> 0
- * ```
- *
- * @param {Function} fn Any function that contains potential calls to
- * [Observation.add].
- *
- * @return {Function} A function that is free of observation side-effects.
- */
-Observation.ignore = function(fn){
-	return function(){
-		if (observationStack.length > 0) {
-			var top = observationStack[observationStack.length-1];
-			top.ignore++;
-			var res = fn.apply(this, arguments);
-			top.ignore--;
-			return res;
-		} else {
-			return fn.apply(this, arguments);
-		}
+// ## Legacy Stuff
+// Warn when `ObservationRecorder` methods are called on `Observation`.
+var alias = {addAll: "addMany"};
+["add","addAll","ignore","trap","trapsCount","isRecording"].forEach(function(methodName){
+	Observation[methodName] = function(){
+		var name = alias[methodName] ? alias[methodName] : methodName;
+		console.warn("can-observation: Call "+name+"() on can-observation-recorder.");
+		return ObservationRecorder[name].apply(this, arguments);
 	};
+});
+Observation.prototype.start = function(){
+	console.warn("can-observation: Use .on and .off to bind.");
+	return this.onBound();
 };
-
-
-/**
- * @function can-observation.trap trap
- * @parent can-observation.static
- * @signature `Observation.trap()`
- *
- * Trap all observations until the `untrap` function is called. The state of
- * traps prior to `Observation.trap()` will be restored when `untrap()` is called.
- *
- * ```js
- * var untrap = Observation.trap();
- *
- * Observation.add(obj, "prop1");
- *
- * var traps = untrap();
- * console.log(traps[0].obj === obj); // -> true
- * ```
- *
- * @return {can-observation.getTrapped} A function to get the trapped observations.
- */
-Observation.trap = function(){
-	if (observationStack.length > 0) {
-		var top = observationStack[observationStack.length-1];
-		var oldTraps = top.traps;
-		var traps = top.traps = [];
-		return function(){
-			top.traps = oldTraps;
-			return traps;
-		};
-	} else {
-		return function(){return [];};
-	}
-};
-/**
- * @typedef {function} can-observation.getTrapped getTrapped
- * @parent can-observation.types
- *
- * @signature `getTrapped()`
- *
- *   Returns the trapped observables captured by [can-observation.trap].
- *
- *   @return {Array<can-observation.observed>}
- */
-
-Observation.trapsCount = function(){
-	if (observationStack.length > 0) {
-		var top = observationStack[observationStack.length-1];
-		return top.traps.length;
-	} else {
-		return 0;
-	}
-};
-// sets an array of observable notifications on the current top of the observe stack.
-
-/**
- * @function can-observation.isRecording isRecording
- * @parent can-observation.static
- * @signature `Observation.isRecording()`
- *
- * Returns if some function is in the process of recording observes.
- *
- * @return {Boolean} True if a function is in the process of recording observes.
- */
-Observation.isRecording = function(){
-	var len = observationStack.length;
-	var last = len > 0 && observationStack[len-1];
-	return last && (last.ignore === 0);
-};
-
-
-// temporarily bind
-
-var noop = function(){};
-// A list of temporarily bound computes
-var observables;
-// Unbinds all temporarily bound computes.
-var unbindComputes = function () {
-	for (var i = 0, len = observables.length; i < len; i++) {
-		canReflect.offValue(observables[i], noop);
-	}
-	observables = null;
+Observation.prototype.stop = function(){
+	console.warn("can-observation: Use .on and .off to bind.");
+	return this.onUnbound();
 };
 
 // ### temporarilyBind
-// Binds computes for a moment to cache their value and prevent re-calculating it.
-Observation.temporarilyBind = function (compute) {
-	var computeInstance = compute.computeInstance || compute;
-	canReflect.onValue(computeInstance, noop);
-	if (!observables) {
-		observables = [];
-		setTimeout(unbindComputes, 10);
-	}
-	observables.push(computeInstance);
-};
+// Will bind an observable value temporarily.  This should be part of queues probably.
+Observation.temporarilyBind = temporarilyBind;
 
 
-// can-reflect bindings ===========
-
-var callHandlers = function(newValue){
-	this.handlers.forEach(function(handler){
-		handler.call(this.compute, newValue);
-	}, this);
-};
-
-canReflect.set(Observation.prototype, canSymbol.for("can.onValue"), function(handler){
-	if(!this.handlers) {
-		this.handlers = [];
-		//!steal-remove-start
-		if(this.compute.updater) {
-			canLog.warn("can-observation bound to with an existing handler");
-		}
-		//!steal-remove-end
-		this.compute.updater = callHandlers.bind(this);
-	}
-
-	if(!this.handlers.length) {
-		this.start();
-	}
-
-	this.handlers.push(handler);
-});
-
-canReflect.set(Observation.prototype, canSymbol.for("can.offValue"), function(handler){
-	if (this.handlers) {
-		var index = this.handlers.indexOf(handler);
-		this.handlers.splice(index, 1);
-		if(this.handlers.length === 0) {
-			this.stop();
-		}
-	}
-});
-
-canReflect.set(Observation.prototype, canSymbol.for("can.getValue"), Observation.prototype.get);
-
-Observation.prototype.hasDependencies = function(){
-	return this.bound ? !isEmptyObject(this.newObserved) : undefined;
-};
-canReflect.set(Observation.prototype, canSymbol.for("can.isValueLike"), true);
-canReflect.set(Observation.prototype, canSymbol.for("can.isMapLike"), false);
-canReflect.set(Observation.prototype, canSymbol.for("can.isListLike"), false);
-
-canReflect.set(Observation.prototype, canSymbol.for("can.valueHasDependencies"), Observation.prototype.hasDependencies);
-
-canReflect.set(Observation.prototype, canSymbol.for("can.getValueDependencies"), function() {
-	var rets;
-	if(this.bound === true) {
-		rets = {};
-		canReflect.eachKey(this.newObserved || {}, function(dep) {
-			if(canReflect.isValueLike(dep.obj)) {
-				rets.valueDependencies = rets.valueDependencies || new CIDSet();
-				rets.valueDependencies.add(dep.obj);
-			} else {
-				rets.keyDependencies = rets.keyDependencies || new CIDMap();
-				if(rets.keyDependencies.get(dep.obj)) {
-					rets.keyDependencies.get(dep.obj).push(dep.event);
-				} else {
-					rets.keyDependencies.set(dep.obj, [dep.event]);
-				}
-			}
-		});
-	}
-	return rets;
-});
-
-if (namespace.Observation) {
-	throw new Error("You can't have two versions of can-observation, check your dependencies");
-} else {
-	module.exports = namespace.Observation = Observation;
-}
+module.exports = namespace.Observation = Observation;
