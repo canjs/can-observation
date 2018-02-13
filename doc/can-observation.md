@@ -16,13 +16,13 @@ Creates an observable value from the return value of the given function called w
 The following creates a `fullName` observation that derives its values from
 the `person` observable.
 
-```js
+```javascript
 import Observation from "can-observation";
 import observe from "can-observe";
 
-var person = observe({first: "Ramiya", last: "Meyer"});
+const person = observe({first: "Ramiya", last: "Meyer"});
 
-var fullName = new Observation(function(){
+const fullName = new Observation(function(){
     return person.first + " " + person.last;
 });
 
@@ -62,13 +62,13 @@ reads from other observables and returns a value.
 The following creates a `fullName` observation that derives its values from
 the `person` observable.
 
-```js
+```javascript
 import Observation from "can-observation";
 import observe from "can-observe";
 
-var person = observe({first: "Ramiya", last: "Meyer"});
+const person = observe({first: "Ramiya", last: "Meyer"});
 
-var fullName = new Observation(function(){
+const fullName = new Observation(function(){
     return person.first + " " + person.last;
 });
 
