@@ -16,20 +16,20 @@ Creates an observable value from the return value of the given function called w
 The following creates a `fullName` observation that derives its values from
 the `person` observable.
 
-```javascript
+```js
 import Observation from "can-observation";
 import observe from "can-observe";
 
 const person = observe({first: "Ramiya", last: "Meyer"});
 
 const fullName = new Observation(function(){
-    return person.first + " " + person.last;
+	return person.first + " " + person.last;
 });
 
 fullName.get() //-> "Ramiya Meyer";
 
 fullName.on(function( newName ){
-    newName //-> "Bodhi Meyer"
+	newName //-> "Bodhi Meyer"
 });
 
 person.first = "Bodhi";
@@ -62,20 +62,20 @@ reads from other observables and returns a value.
 The following creates a `fullName` observation that derives its values from
 the `person` observable.
 
-```javascript
+```js
 import Observation from "can-observation";
 import observe from "can-observe";
 
 const person = observe({first: "Ramiya", last: "Meyer"});
 
 const fullName = new Observation(function(){
-    return person.first + " " + person.last;
+	return person.first + " " + person.last;
 });
 
 fullName.get() //-> "Ramiya Meyer";
 
 fullName.on(function( newName ){
-    newName //-> "Bodhi Meyer"
+	newName //-> "Bodhi Meyer"
 });
 
 person.first = "Bodhi";
