@@ -20,17 +20,17 @@ the `person` observable.
 import Observation from "can-observation";
 import observe from "can-observe";
 
-const person = observe({first: "Ramiya", last: "Meyer"});
+const person = observe( { first: "Ramiya", last: "Meyer" } );
 
-const fullName = new Observation(function(){
+const fullName = new Observation( function() {
 	return person.first + " " + person.last;
-});
+} );
 
-fullName.get() //-> "Ramiya Meyer";
+fullName.get(); //-> "Ramiya Meyer";
 
-fullName.on(function( newName ){
-	newName //-> "Bodhi Meyer"
-});
+fullName.on( function( newName ) {
+	newName; //-> "Bodhi Meyer"
+} );
 
 person.first = "Bodhi";
 ```
@@ -66,17 +66,17 @@ the `person` observable.
 import Observation from "can-observation";
 import observe from "can-observe";
 
-const person = observe({first: "Ramiya", last: "Meyer"});
+const person = observe( { first: "Ramiya", last: "Meyer" } );
 
-const fullName = new Observation(function(){
+const fullName = new Observation( function() {
 	return person.first + " " + person.last;
-});
+} );
 
-fullName.get() //-> "Ramiya Meyer";
+fullName.get(); //-> "Ramiya Meyer";
 
-fullName.on(function( newName ){
-	newName //-> "Bodhi Meyer"
-});
+fullName.on( function( newName ) {
+	newName; //-> "Bodhi Meyer"
+} );
 
 person.first = "Bodhi";
 ```
