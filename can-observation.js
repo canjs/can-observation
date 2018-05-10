@@ -26,6 +26,7 @@ function Observation(func, context, options){
 
 	// These properties will manage what our new and old dependencies are.
 	this.newDependencies = ObservationRecorder.makeDependenciesRecord();
+	this.newDependencies.priority = this.options.priority;
 	this.oldDependencies = null;
 
 	// Make functions we need to pass around and maintain `this`.
@@ -50,6 +51,8 @@ function Observation(func, context, options){
 		value: canReflect.getName(this) + ".update",
 	});
 	//!steal-remove-end
+
+	ObservationRecorder.created(this);
 }
 
 // ## Observation prototype methods
@@ -69,7 +72,8 @@ canReflect.assign(Observation.prototype, {
 		// Store the old dependencies
 		this.oldDependencies = this.newDependencies;
 		// Start recording dependencies.
-		ObservationRecorder.start();
+		var top = ObservationRecorder.start();
+		top.priority = this.options.priority;
 		// Call the observation's function and update the new value.
 		this.value = this.func.call(this.context);
 		// Get the new dependencies.
@@ -108,12 +112,16 @@ canReflect.assign(Observation.prototype, {
 	// Called to update its value as part of the `derive` queue.
 	update: function() {
 		if (this.bound === true) {
+			// teardown child dependencies
+			recorderHelpers.stopChildren(this.newDependencies);
+
 			// Keep the old value.
 			var oldValue = this.value;
 			this.oldValue = null;
 			// Re-run `this.func` and update dependency bindings.
 			this.onBound();
-			// If our value changed, call the `dispatch` method provided by `can-event-queue/value/value`.
+			// If our value changed, call the `dispatch` method provided by
+			// `can-event-queue/value/value`.
 			if (oldValue !== this.value) {
 				this[dispatchSymbol](this.value, oldValue);
 			}
@@ -129,11 +137,9 @@ canReflect.assign(Observation.prototype, {
 	},
 	// Reads the value of the observation.
 	get: function(){
-
 		// If an external observation is tracking observables and
 		// this compute can be listened to by "function" based computes ....
 		if( this.options.isObservable && ObservationRecorder.isRecording() ) {
-
 			// ... tell the tracking compute to listen to change on this observation.
 			ObservationRecorder.add(this);
 			// ... if we are not bound, we should bind so that
@@ -141,7 +147,6 @@ canReflect.assign(Observation.prototype, {
 			if (!this.bound) {
 				Observation.temporarilyBind(this);
 			}
-
 		}
 
 
@@ -220,6 +225,10 @@ canReflect.assignSymbols(Observation.prototype, {
 	},
 	"can.setPriority": function(priority){
 		this.options.priority = priority;
+	},
+	"can.addParent": function(parent) {
+		this.parent = parent;
+		canReflect.setPriority(this, parent.priority + 1);
 	},
 	//!steal-remove-start
 	"can.getName": function() {
