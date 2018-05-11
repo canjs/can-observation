@@ -26,7 +26,7 @@ function Observation(func, context, options){
 
 	// These properties will manage what our new and old dependencies are.
 	this.newDependencies = ObservationRecorder.makeDependenciesRecord();
-	this.newDependencies.priority = this.options.priority;
+	this.newDependencies.priority = this.options.priority || 0;
 	this.oldDependencies = null;
 
 	// Make functions we need to pass around and maintain `this`.
