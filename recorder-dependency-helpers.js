@@ -52,8 +52,24 @@ function removeValueDependencies(observable) {
     canReflect.offValue(observable, this.onDependencyChange,"notify");
 }
 
-function removeChildDependencies(observable) {
-	canReflect.offValue(observable);
+function removeBinding(handler) {
+	canReflect.offValue(this.context, handler, this.queue);
+}
+
+function removeBindingForContext(handlers, context) {
+	canReflect.each(handlers, removeBinding, {
+		context: context,
+		queue: this.queue
+	});
+}
+
+function removeBindingForQueue(map, queue) {
+	canReflect.eachKey(map, removeBindingForContext, { queue: queue });
+}
+
+function removeBindings(binding){
+	var node = binding.getNode([]);
+	canReflect.eachKey(node, removeBindingForQueue);
 }
 
 module.exports = {
@@ -82,5 +98,10 @@ module.exports = {
     },
 		stopChildren: function(observationReceiver) {
 			observationReceiver.childDependencies.forEach(removeChildDependencies);
+		},
+		stopWeakBindings: function(observationData) {
+			if(observationData.bindings) {
+				observationData.bindings.forEach(removeBindings);
+			}
 		}
 };

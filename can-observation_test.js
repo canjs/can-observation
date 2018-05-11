@@ -586,7 +586,6 @@ skipProductionTest("Observation decorates onDependencyChange handler", function(
 });
 
 QUnit.test("Tears down inner observations when updating", function() {
-	//queues.log();
 	var fooUpdates = 0;
 	var show = simpleObservable(true);
 	var bar = simpleObservable("bar");
@@ -597,7 +596,17 @@ QUnit.test("Tears down inner observations when updating", function() {
 			var val = bar.get();
 			fooUpdates++;
 			return val;
-		}, {isObservable: false});
+		}, null, {isObservable: false});
+
+		var stopTrapping = foo.trapBindings();
+		canReflect.onValue(foo, function fooBinding(){});
+		function fooBinding2(){}
+		canReflect.onValue(foo, fooBinding2);
+		canReflect.offValue(foo, fooBinding2);
+
+		var bindings = stopTrapping();
+		ObservationRecorder.addBindings(bindings);
+
 		return foo.get();
 	}
 
@@ -616,7 +625,7 @@ QUnit.test("Tears down inner observations when updating", function() {
 		}
 	});
 
-	canReflect.onValue(ifBlock, function(){});
+	canReflect.onValue(ifBlock, function ifBinding(){});
 
 	queues.batch.start();
 	show.set(false);

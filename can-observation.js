@@ -7,6 +7,7 @@ var ObservationRecorder = require("can-observation-recorder");
 
 var canSymbol = require("can-symbol");
 var dev = require("can-log/dev/dev");
+var KeyTree = require("can-key-tree");
 var valueEventBindings = require("can-event-queue/value/value");
 
 var recorderHelpers = require("./recorder-dependency-helpers");
@@ -15,6 +16,8 @@ var temporarilyBind = require("./temporarily-bind");
 var dispatchSymbol = canSymbol.for("can.dispatch");
 var getChangesSymbol = canSymbol.for("can.getChangesDependencyRecord");
 var getValueDependenciesSymbol = canSymbol.for("can.getValueDependencies");
+var onValueSymbol = canSymbol.for("can.onValue");
+var offValueSymbol = canSymbol.for("can.offValue");
 
 // ## Observation constructor
 function Observation(func, context, options){
@@ -23,6 +26,8 @@ function Observation(func, context, options){
 	this.options = options || {priority: 0, isObservable: true};
 	// A flag if we are bound or not
 	this.bound = false;
+	// A flag if we are trapping bindings
+	this.trappedBindings = null;
 
 	// These properties will manage what our new and old dependencies are.
 	this.newDependencies = ObservationRecorder.makeDependenciesRecord();
@@ -113,7 +118,7 @@ canReflect.assign(Observation.prototype, {
 	update: function() {
 		if (this.bound === true) {
 			// teardown child dependencies
-			recorderHelpers.stopChildren(this.newDependencies);
+			recorderHelpers.stopWeakBindings(this.newDependencies);
 
 			// Keep the old value.
 			var oldValue = this.value;
@@ -164,12 +169,20 @@ canReflect.assign(Observation.prototype, {
 			return this.func.call(this.context);
 		}
 	},
-
 	hasDependencies: function(){
 		var newDependencies = this.newDependencies;
 		return this.bound ?
 			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
 			undefined;
+	},
+	trapBindings: function() {
+		var self = this;
+		this.trappedBindings = new KeyTree([Object, Map, Array]);
+		return function() {
+			var trappedBindings = self.trappedBindings;
+			self.trappedBindings = null;
+			return trappedBindings;
+		};
 	},
 	/**
 	 * @function can-observation.prototype.log log
@@ -195,6 +208,9 @@ canReflect.assign(Observation.prototype, {
 	}
 });
 
+var onValue = Observation.prototype[onValueSymbol];
+var offValue = Observation.prototype[offValueSymbol];
+
 canReflect.assignSymbols(Observation.prototype, {
 	"can.getValue": Observation.prototype.get,
 	"can.isValueLike": true,
@@ -219,6 +235,20 @@ canReflect.assignSymbols(Observation.prototype, {
 			return result;
 		}
 		return undefined;
+	},
+	"can.onValue": function(handler, queue) {
+		if(this.trappedBindings) {
+			this.trappedBindings.add([queue || "mutate", this, handler]);
+		}
+
+		return onValue.apply(this, arguments);
+	},
+	"can.offValue": function(handler, queue) {
+		if(this.trappedBindings) {
+			this.trappedBindings.delete([queue || "mutate", this, handler]);
+		}
+
+		return offValue.apply(this, arguments);
 	},
 	"can.getPriority": function(){
 		return this.options.priority;

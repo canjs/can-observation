@@ -29,12 +29,6 @@
     "canjs-plugin",
     "donejs"
   ],
-  "system": {
-    "configDependencies": [
-      "live-reload"
-    ],
-    "npmAlgorithm": "flat"
-  },
   "dependencies": {
     "can-event-queue": "^1.0.0",
     "can-key-tree": "^1.0.0",
