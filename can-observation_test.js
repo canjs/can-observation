@@ -584,3 +584,44 @@ skipProductionTest("Observation decorates onDependencyChange handler", function(
 		"onDependencyChange changes the observation"
 	);
 });
+
+QUnit.test("Tears down inner observations when updating", function() {
+	//queues.log();
+	var fooUpdates = 0;
+	var show = simpleObservable(true);
+	var bar = simpleObservable("bar");
+
+	function fn() {
+		// priority 2
+		var foo = new Observation(function foo(){
+			var val = bar.get();
+			fooUpdates++;
+			return val;
+		}, {isObservable: false});
+		return foo.get();
+	}
+
+
+	// priority 1
+	var ifBlock = new Observation(function ifBlock(){
+		// priority 2
+		var LOGIC = new Observation(function LOGIC(){
+			return show.get();
+		});
+
+		if(LOGIC.get()) {
+			return fn();
+		} else {
+			return "other";
+		}
+	});
+
+	canReflect.onValue(ifBlock, function(){});
+
+	queues.batch.start();
+	show.set(false);
+	bar.set(undefined);
+	queues.batch.stop();
+
+	QUnit.equal(fooUpdates, 1, "foo's func was ran once");
+});

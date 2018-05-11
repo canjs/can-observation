@@ -52,6 +52,9 @@ function removeValueDependencies(observable) {
     canReflect.offValue(observable, this.onDependencyChange,"notify");
 }
 
+function removeChildDependencies(observable) {
+	canReflect.offValue(observable);
+}
 
 module.exports = {
     // ## updateObservations
@@ -76,5 +79,8 @@ module.exports = {
     stopObserving: function(observationReciever, onDependencyChange){
         observationReciever.keyDependencies.forEach(removeObservablesKeyDependencies, {onDependencyChange: onDependencyChange});
         observationReciever.valueDependencies.forEach(removeValueDependencies, {onDependencyChange: onDependencyChange});
-    }
+    },
+		stopChildren: function(observationReceiver) {
+			observationReceiver.childDependencies.forEach(removeChildDependencies);
+		}
 };
