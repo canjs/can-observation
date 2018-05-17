@@ -53,6 +53,11 @@ function removeValueDependencies(observable) {
 }
 
 function removeBinding(handler) {
+	if(handler.isPatch) {
+		canReflect.offPatches(this.context, handler, this.queue);
+		return;
+	}
+
 	canReflect.offValue(this.context, handler, this.queue);
 }
 
