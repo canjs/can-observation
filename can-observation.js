@@ -38,17 +38,19 @@ function Observation(func, context, options){
 
 	// Add debugging names.
 	//!steal-remove-start
-	this.onDependencyChange[getChangesSymbol] = function getChanges() {
-		return {
-			valueDependencies: new Set([self])
+	if (process.env.NODE_ENV !== 'production') {
+		this.onDependencyChange[getChangesSymbol] = function getChanges() {
+			return {
+				valueDependencies: new Set([self])
+			};
 		};
-	};
-	Object.defineProperty(this.onDependencyChange, "name", {
-		value: canReflect.getName(this) + ".onDependencyChange",
-	});
-	Object.defineProperty(this.update, "name", {
-		value: canReflect.getName(this) + ".update",
-	});
+		Object.defineProperty(this.onDependencyChange, "name", {
+			value: canReflect.getName(this) + ".onDependencyChange",
+		});
+		Object.defineProperty(this.update, "name", {
+			value: canReflect.getName(this) + ".update",
+		});
+	}
 	//!steal-remove-end
 }
 
@@ -84,25 +86,35 @@ canReflect.assign(Observation.prototype, {
 	// observables have had time to notify all observables that "derive" their value.
 	dependencyChange: function(context, args){
 		if(this.bound === true) {
-			// Update this observation after all `notify` tasks have been run.
-			queues.deriveQueue.enqueue(
+			var queuesArgs = [];
+			queuesArgs = [
 				this.update,
 				this,
 				[],
 				{
 					priority: this.options.priority
-					//!steal-remove-start
-					/* jshint laxcomma: true */
-					, log: [ canReflect.getName(this.update) ]
-					/* jshint laxcomma: false */
-					//!steal-remove-end
 				}
-				//!steal-remove-start
-				/* jshint laxcomma: true */
-				, [canReflect.getName(context), "changed"]
-				/* jshint laxcomma: false */
-				//!steal-remove-end
-			);
+			];
+			//!steal-remove-start
+			if (process.env.NODE_ENV !== 'production') {
+				queuesArgs = [
+					this.update,
+					this,
+					[],
+					{
+						priority: this.options.priority
+						/* jshint laxcomma: true */
+						, log: [ canReflect.getName(this.update) ]
+						/* jshint laxcomma: false */
+					}
+					/* jshint laxcomma: true */
+					, [canReflect.getName(context), "changed"]
+					/* jshint laxcomma: false */
+				];
+			}
+			//!steal-remove-end
+			// Update this observation after all `notify` tasks have been run.
+			queues.deriveQueue.enqueue.apply(queues.deriveQueue, queuesArgs);
 		}
 	},
 	// Called to update its value as part of the `derive` queue.
@@ -176,21 +188,23 @@ canReflect.assign(Observation.prototype, {
 	 */
 	log: function() {
 		//!steal-remove-start
-		var quoteString = function quoteString(x) {
-			return typeof x === "string" ? JSON.stringify(x) : x;
-		};
-		this._log = function(previous, current) {
-			dev.log(
-				canReflect.getName(this),
-				"\n is  ", quoteString(current),
-				"\n was ", quoteString(previous)
-			);
-		};
+		if (process.env.NODE_ENV !== 'production') {
+			var quoteString = function quoteString(x) {
+				return typeof x === "string" ? JSON.stringify(x) : x;
+			};
+			this._log = function(previous, current) {
+				dev.log(
+					canReflect.getName(this),
+					"\n is  ", quoteString(current),
+					"\n was ", quoteString(previous)
+				);
+			};
+		}
 		//!steal-remove-end
 	}
 });
 
-canReflect.assignSymbols(Observation.prototype, {
+var observationProto = {
 	"can.getValue": Observation.prototype.get,
 	"can.isValueLike": true,
 	"can.isMapLike": false,
@@ -220,13 +234,17 @@ canReflect.assignSymbols(Observation.prototype, {
 	},
 	"can.setPriority": function(priority){
 		this.options.priority = priority;
-	},
-	//!steal-remove-start
-	"can.getName": function() {
-		return canReflect.getName(this.constructor) + "<" + canReflect.getName(this.func) + ">";
 	}
-	//!steal-remove-end
-});
+};
+
+//!steal-remove-start
+if (process.env.NODE_ENV !== 'production') {
+	observationProto[canSymbol.for("can.getName")] = function() {
+		return canReflect.getName(this.constructor) + "<" + canReflect.getName(this.func) + ">";
+	};
+}
+//!steal-remove-end
+canReflect.assignSymbols(Observation.prototype, observationProto);
 
 // ## Observation.updateChildrenAndSelf
 // This recursively checks if an observation's dependencies might be in the `derive` queue.
