@@ -239,7 +239,7 @@ var observationProto = {
 
 //!steal-remove-start
 if (process.env.NODE_ENV !== 'production') {
-	observationProto[canSymbol.for("can.getName")] = function() {
+	observationProto["can.getName"] = function() {
 		return canReflect.getName(this.constructor) + "<" + canReflect.getName(this.func) + ">";
 	};
 }
