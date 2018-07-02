@@ -73,7 +73,7 @@ canReflect.assign(Observation.prototype, {
 		// Start recording dependencies.
 		ObservationRecorder.start();
 		// Call the observation's function and update the new value.
-		this.value = this.func.call(this.context);
+		this._value = this.func.call(this.context);
 		// Get the new dependencies.
 		this.newDependencies = ObservationRecorder.stop();
 
@@ -121,13 +121,13 @@ canReflect.assign(Observation.prototype, {
 	update: function() {
 		if (this.bound === true) {
 			// Keep the old value.
-			var oldValue = this.value;
+			var oldValue = this._value;
 			this.oldValue = null;
 			// Re-run `this.func` and update dependency bindings.
 			this.onBound();
 			// If our value changed, call the `dispatch` method provided by `can-event-queue/value/value`.
-			if (oldValue !== this.value) {
-				this[dispatchSymbol](this.value, oldValue);
+			if (oldValue !== this._value) {
+				this[dispatchSymbol](this._value, oldValue);
 			}
 		}
 	},
@@ -165,7 +165,7 @@ canReflect.assign(Observation.prototype, {
 				Observation.updateChildrenAndSelf(this);
 			}
 
-			return this.value;
+			return this._value;
 		} else {
 			// If we are not bound, just call the function.
 			return this.func.call(this.context);
@@ -201,6 +201,12 @@ canReflect.assign(Observation.prototype, {
 			};
 		}
 		//!steal-remove-end
+	}
+});
+
+Object.defineProperty(Observation.prototype, "value", {
+	get: function() {
+		return this.get();
 	}
 });
 

@@ -2,7 +2,6 @@
 @parent can-observables
 @collection can-infrastructure
 @group can-observation.prototype prototype
-@group can-observation.types types
 @package ../package.json
 
 Create observable values that derive their value from other observable
@@ -90,4 +89,4 @@ Use [can-observation.prototype.off] to unbind.
     observables call OR.add.
   - Binds to those using recorder-dependency-helpers
     - when a change happens, adds itself to the notify queue
-      - repeats process 
+      - repeats process

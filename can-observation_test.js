@@ -584,3 +584,13 @@ skipProductionTest("Observation decorates onDependencyChange handler", function(
 		"onDependencyChange changes the observation"
 	);
 });
+
+QUnit.test("value property getter", function() {
+	var observation = new Observation(function() {
+		return "Hello";
+	});
+
+	// Check getting the value
+	QUnit.equal(observation.value, "Hello", "value returns");
+
+});
