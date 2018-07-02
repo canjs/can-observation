@@ -409,7 +409,7 @@ QUnit.test("getValueDependencies work with can-reflect", function() {
 
 });
 
-QUnit.test("Observation can listen to something decorated with onValue and offValue", function(){
+QUnit.test("Observation can listen to value decorated with onValue and offValue", function(){
 	var v1 = reflectiveValue(1);
 	var v2 = reflectiveValue(2);
 
@@ -430,7 +430,7 @@ QUnit.test("Observation can listen to something decorated with onValue and offVa
 });
 
 
-QUnit.test("Observation can listen to something decorated with onValue and offValue", function(){
+QUnit.test("Observation can listen to observable decorated with onValue and offValue", function(){
 	var v1 = reflectiveObservable(1);
 	var v2 = reflectiveObservable(2);
 
