@@ -25,7 +25,7 @@ const fullName = new Observation( function() {
 	return person.first + " " + person.last;
 } );
 
-fullName.get(); //-> "Ramiya Meyer";
+fullName.value; //-> "Ramiya Meyer";
 
 fullName.on( function( newName ) {
 	newName; //-> "Bodhi Meyer"
@@ -71,7 +71,7 @@ const fullName = new Observation( function() {
 	return person.first + " " + person.last;
 } );
 
-fullName.get(); //-> "Ramiya Meyer";
+fullName.value; //-> "Ramiya Meyer";
 
 fullName.on( function( newName ) {
 	newName; //-> "Bodhi Meyer"
