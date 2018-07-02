@@ -51,8 +51,6 @@
     "detect-cyclic-packages": "^1.1.0",
     "docco": "^0.7.0",
     "done-serve": "^1.2.0",
-    "donejs-cli": "^2.0.0",
-    "generator-donejs": "^1.0.5",
     "jshint": "^2.9.1",
     "steal": "^1.2.3",
     "steal-benchmark": "0.0.1",
