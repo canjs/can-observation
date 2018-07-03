@@ -24,6 +24,9 @@ function Observation(func, context, options){
 	// A flag if we are bound or not
 	this.bound = false;
 
+	// Set _value to undefined so can-view-scope & can-compute can check for it
+	this._value = undefined;
+
 	// These properties will manage what our new and old dependencies are.
 	this.newDependencies = ObservationRecorder.makeDependenciesRecord();
 	this.oldDependencies = null;
