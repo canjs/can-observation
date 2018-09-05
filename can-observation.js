@@ -44,8 +44,10 @@ function Observation(func, context, options){
 	//!steal-remove-start
 	if (process.env.NODE_ENV !== 'production') {
 		this.onDependencyChange[getChangesSymbol] = function getChanges() {
+			var s = new Set();
+			s.add(self);
 			return {
-				valueDependencies: new Set([self])
+				valueDependencies: s
 			};
 		};
 		Object.defineProperty(this.onDependencyChange, "name", {
