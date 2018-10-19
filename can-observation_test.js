@@ -529,7 +529,8 @@ QUnit.test("log observable changes", function(assert) {
 	var name = simpleObservable("John Doe");
 	var fn = function() {};
 
-	//assert.expect(3);
+	assert.expect(3);
+
 	var log = dev.log;
 	dev.log = function() {
 		dev.log = log;
@@ -537,6 +538,8 @@ QUnit.test("log observable changes", function(assert) {
 		// this test is ignored under IE11
 		if (fn.name) {
 			assert.equal(arguments[0], "Observation<>", "should use can.getName");
+		} else {
+			assert.expect(2);
 		}
 		assert.equal(arguments[2], '"Charles Babbage"', "should use current value");
 		assert.equal(arguments[4], '"John Doe"', "should use previous value");
