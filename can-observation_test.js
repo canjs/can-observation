@@ -527,12 +527,17 @@ QUnit.test("a bound observation with no dependencies will keep calling its funct
 QUnit.test("log observable changes", function(assert) {
 	var dev = require("can-log/dev/dev");
 	var name = simpleObservable("John Doe");
+	var fn = function() {};
 
-	assert.expect(3);
+	assert.expect(2);
 	var log = dev.log;
 	dev.log = function() {
 		dev.log = log;
-		assert.equal(arguments[0], "Observation<>", "should use can.getName");
+		// Functions in IE11 dont have name property
+		// this test is ignored under IE11
+		if (fn.name) {
+			assert.equal(arguments[0], "Observation<>", "should use can.getName");
+		}
 		assert.equal(arguments[2], '"Charles Babbage"', "should use current value");
 		assert.equal(arguments[4], '"John Doe"', "should use previous value");
 	};
