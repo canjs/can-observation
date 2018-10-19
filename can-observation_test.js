@@ -529,7 +529,7 @@ QUnit.test("log observable changes", function(assert) {
 	var name = simpleObservable("John Doe");
 	var fn = function() {};
 
-	assert.expect(2);
+	//assert.expect(3);
 	var log = dev.log;
 	dev.log = function() {
 		dev.log = log;
