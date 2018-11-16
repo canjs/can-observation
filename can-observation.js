@@ -20,6 +20,7 @@ var getValueDependenciesSymbol = canSymbol.for("can.getValueDependencies");
 // ## Observation constructor
 function Observation(func, context, options){
 	this.func = func;
+
 	this.context = context;
 	this.options = options || {priority: 0, isObservable: true};
 	// A flag if we are bound or not
@@ -28,8 +29,14 @@ function Observation(func, context, options){
 	// Set _value to undefined so can-view-scope & can-compute can check for it
 	this._value = undefined;
 
+	//!steal-remove-start
+	if (process.env.NODE_ENV !== 'production') {
+		this._name = canReflect.getName(this);
+	}
+	//!steal-remove-end
+
 	// These properties will manage what our new and old dependencies are.
-	this.newDependencies = ObservationRecorder.makeDependenciesRecord();
+	this.newDependencies = ObservationRecorder.makeDependenciesRecord(this._name);
 	this.oldDependencies = null;
 
 	// Make functions we need to pass around and maintain `this`.
@@ -56,6 +63,7 @@ function Observation(func, context, options){
 		Object.defineProperty(this.update, "name", {
 			value: canReflect.getName(this) + ".update",
 		});
+		this._name = canReflect.getName(this);
 	}
 	//!steal-remove-end
 }
@@ -77,7 +85,7 @@ canReflect.assign(Observation.prototype, {
 		// Store the old dependencies
 		this.oldDependencies = this.newDependencies;
 		// Start recording dependencies.
-		ObservationRecorder.start();
+		ObservationRecorder.start(this._name);
 		// Call the observation's function and update the new value.
 		this._value = this.func.call(this.context);
 		// Get the new dependencies.
@@ -143,7 +151,7 @@ canReflect.assign(Observation.prototype, {
 		this.bound = false;
 		recorderHelpers.stopObserving(this.newDependencies, this.onDependencyChange);
 		// Setup newDependencies in case someone binds again to this observable.
-		this.newDependencies = ObservationRecorder.makeDependenciesRecord();
+		this.newDependencies = ObservationRecorder.makeDependenciesRecord(this._name);
 	},
 	// Reads the value of the observation.
 	get: function(){
