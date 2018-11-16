@@ -143,7 +143,7 @@ canReflect.assign(Observation.prototype, {
 		this.bound = false;
 		recorderHelpers.stopObserving(this.newDependencies, this.onDependencyChange);
 		// Setup newDependencies in case someone binds again to this observable.
-		this.newDependencies = ObservationRecorder.makeDependenciesRecorder();
+		this.newDependencies = ObservationRecorder.makeDependenciesRecord();
 	},
 	// Reads the value of the observation.
 	get: function(){
@@ -156,7 +156,7 @@ canReflect.assign(Observation.prototype, {
 			ObservationRecorder.add(this);
 			// ... if we are not bound, we should bind so that
 			// we don't have to re-read to get the value of this observation.
-			if (!this.bound) {
+			if (this.bound === false) {
 				Observation.temporarilyBind(this);
 			}
 
@@ -184,14 +184,6 @@ canReflect.assign(Observation.prototype, {
 			(newDependencies.valueDependencies.size + newDependencies.keyDependencies.size) > 0  :
 			undefined;
 	},
-	/**
-	 * @function can-observation.prototype.log log
-	 * @parent can-observation.prototype prototype
-	 *
-	 * @signature `observation.log()`
-	 *
-	 * Turns on logging of changes to the browser console.
-	 */
 	log: function() {
 		//!steal-remove-start
 		if (process.env.NODE_ENV !== 'production') {
