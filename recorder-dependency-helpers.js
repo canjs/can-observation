@@ -1,3 +1,4 @@
+"use strict";
 // # Recorder Dependency Helpers
 // This exposes two helpers:
 // - `updateObservations` - binds and unbinds a diff of two observation records
