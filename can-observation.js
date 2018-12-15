@@ -56,6 +56,7 @@ function Observation(func, context, options){
 		Object.defineProperty(this.update, "name", {
 			value: canReflect.getName(this) + ".update",
 		});
+		this._name = canReflect.getName(this); // cached for performance
 	}
 	//!steal-remove-end
 }
@@ -77,7 +78,7 @@ canReflect.assign(Observation.prototype, {
 		// Store the old dependencies
 		this.oldDependencies = this.newDependencies;
 		// Start recording dependencies.
-		ObservationRecorder.start();
+		ObservationRecorder.start(this._name);
 		// Call the observation's function and update the new value.
 		this._value = this.func.call(this.context);
 		// Get the new dependencies.
