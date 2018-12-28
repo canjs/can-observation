@@ -50,7 +50,7 @@
     "can-cid": "^1.0.0",
     "detect-cyclic-packages": "^1.1.0",
     "docco": "^0.7.0",
-    "done-serve": "^2.0.0",
+    "done-serve": "^3.0.0",
     "jshint": "^2.9.1",
     "steal": "^1.2.3",
     "steal-benchmark": "0.0.1",
