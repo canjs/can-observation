@@ -19,6 +19,8 @@ var getValueDependenciesSymbol = canSymbol.for("can.getValueDependencies");
 
 // ## Observation constructor
 function Observation(func, context, options){
+	this.deriveQueue = queues.deriveQueue;
+
 	this.func = func;
 	this.context = context;
 	this.options = options || {priority: 0, isObservable: true};
@@ -121,7 +123,7 @@ canReflect.assign(Observation.prototype, {
 			}
 			//!steal-remove-end
 			// Update this observation after all `notify` tasks have been run.
-			queues.deriveQueue.enqueue.apply(queues.deriveQueue, queuesArgs);
+			this.deriveQueue.enqueue.apply(this.deriveQueue, queuesArgs);
 		}
 	},
 	// Called to update its value as part of the `derive` queue.
@@ -168,7 +170,7 @@ canReflect.assign(Observation.prototype, {
 			// It's possible that a child dependency of this observable might be queued
 			// to change. Check all child dependencies and make sure they are up-to-date by
 			// possibly running what they have registered in the derive queue.
-			if(queues.deriveQueue.tasksRemainingCount() > 0) {
+			if(this.deriveQueue.tasksRemainingCount() > 0) {
 				Observation.updateChildrenAndSelf(this);
 			}
 
@@ -239,6 +241,10 @@ var observationProto = {
 	},
 	"can.setPriority": function(priority){
 		this.options.priority = priority;
+	},
+	"can.setElement": function(element) {
+		this.options.element = element;
+		this.deriveQueue = queues.domDeriveQueue || queues.deriveQueue;
 	}
 };
 
@@ -261,10 +267,10 @@ Observation.updateChildrenAndSelf = function(observation){
 	// the value is right.
 	// > NOTE: This only works for `Observation` right now.  We need a way of knowing how
 	// > to find what an observable might have in the `deriveQueue`.
-	if(observation.update !== undefined && queues.deriveQueue.isEnqueued( observation.update ) === true) {
+	if(observation.update !== undefined && observation.deriveQueue.isEnqueued( observation.update ) === true) {
 		// TODO: In the future, we should be able to send log information
 		// to explain why this needed to be updated.
-		queues.deriveQueue.flushQueuedTask(observation.update);
+		observation.deriveQueue.flushQueuedTask(observation.update);
 		return true;
 	}
 
