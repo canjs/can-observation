@@ -101,7 +101,8 @@ canReflect.assign(Observation.prototype, {
 				this,
 				[],
 				{
-					priority: this.options.priority
+					priority: this.options.priority,
+					element: this.options.element
 				}
 			];
 			//!steal-remove-start
@@ -111,7 +112,8 @@ canReflect.assign(Observation.prototype, {
 					this,
 					[],
 					{
-						priority: this.options.priority
+						priority: this.options.priority,
+						element: this.options.element
 						/* jshint laxcomma: true */
 						, log: [ canReflect.getName(this.update) ]
 						/* jshint laxcomma: false */
