@@ -11,10 +11,10 @@ require("can-event/batch/batch");
 var eventAsync = require("can-event/async/async");
 
 QUnit.module('can-observation async',{
-	setup: function(){
+	beforeEach: function(assert) {
 		eventAsync.async();
 	},
-	teardown: function(){
+	afterEach: function(assert) {
 		eventAsync.sync();
 	}
 });
@@ -71,7 +71,7 @@ var simpleCompute = function(getter, name, primaryDepth){
 	return fn;
 };
 
-QUnit.test('nested traps are reset onto parent traps', function() {
+QUnit.test('nested traps are reset onto parent traps', function(assert) {
     var obs1 = assign({}, canEvent);
     CID(obs1);
     var obs2 = assign({}, canEvent);
@@ -92,9 +92,9 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 
 		var observes1 = getObserves1();
 
-		equal(observes1.length, 2, "two items");
-		equal(observes1[0].obj, obs1);
-		equal(observes1[1].obj, obs2);
+		assert.equal(observes1.length, 2, "two items");
+		assert.equal(observes1[0].obj, obs1);
+		assert.equal(observes1[1].obj, obs2);
 	}, null, function() {
 
 	});
@@ -103,8 +103,8 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 });
 
 
-QUnit.test("Change propagation in a batch with late bindings (#2412)", function(){
-	QUnit.stop();
+QUnit.test("Change propagation in a batch with late bindings (#2412)", function(assert) {
+	var done = assert.async();
 
 	var rootA = simpleObservable('a');
 	var rootB = simpleObservable('b');
@@ -126,8 +126,8 @@ QUnit.test("Change propagation in a batch with late bindings (#2412)", function(
 	childA.addEventListener('change', function(ev, newVal, oldVal) {});
 
 	grandChild.addEventListener('change', function(ev, newVal, oldVal) {
-		equal(newVal, "grandChild->childAA", "got the right value");
-		QUnit.start();
+		assert.equal(newVal, "grandChild->childAA", "got the right value");
+		done();
 	});
 
 	rootA.set('A');
@@ -135,56 +135,58 @@ QUnit.test("Change propagation in a batch with late bindings (#2412)", function(
 
 });
 
-QUnit.asyncTest("deeply nested computes that are read that don't allow deeper primary depth computes to complete first", function(){
+QUnit.test("deeply nested computes that are read that don't allow deeper primary depth computes to complete first", function(assert) {
+    var ready1 = assert.async();
+    var ready = assert.async();
 
-	// This is to setup `grandChild` which will be forced
-	// into reading `childA` which has a higher depth then itself, but isn't changing.
-	// This makes sure that it will get a value for childA before
-	// continuing on to deeper "primary depth" computes (things that are nested in stache).
-	var rootA = simpleObservable('a');
-	var rootB = simpleObservable('b');
+    // This is to setup `grandChild` which will be forced
+    // into reading `childA` which has a higher depth then itself, but isn't changing.
+    // This makes sure that it will get a value for childA before
+    // continuing on to deeper "primary depth" computes (things that are nested in stache).
+    var rootA = simpleObservable('a');
+    var rootB = simpleObservable('b');
 
-	var childA = simpleCompute(function() {
+    var childA = simpleCompute(function() {
 		return "childA"+rootA.get();
 	},'childA');
 
-	var grandChild = simpleCompute(function() {
+    var grandChild = simpleCompute(function() {
 		if(rootB.get() === 'b') {
 			return 'grandChild->b';
 		}
 		return childA();
 	},'grandChild');
 
-	// this should update last
-	var deepThing = simpleCompute(function(){
+    // this should update last
+    var deepThing = simpleCompute(function(){
 		return rootB.get();
 	},"deepThing", 4);
 
-	var order = [];
+    var order = [];
 
-	childA.addEventListener("change", function(){});
+    childA.addEventListener("change", function(){});
 
-	deepThing.addEventListener("change", function(){
+    deepThing.addEventListener("change", function(){
 		order.push("deepThing");
-		QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
+		assert.deepEqual(order, ["grandChild childAa","deepThing"]);
 		if(order.length === 2) {
-			QUnit.start();
+			ready();
 		}
 
 	});
 
-	grandChild.addEventListener("change", function(ev, newVal){
+    grandChild.addEventListener("change", function(ev, newVal){
 		order.push("grandChild "+newVal);
 		if(order.length === 2) {
-			QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
-			QUnit.start();
+			assert.deepEqual(order, ["grandChild childAa","deepThing"]);
+			ready1();
 		}
 	});
 
-	rootB.set('B');
+    rootB.set('B');
 });
 
-QUnit.test("can read values synchronously", function(){
+QUnit.test("can read values synchronously", function(assert) {
 	var rootA = simpleObservable('a');
 	var rootB = simpleObservable('b');
 
@@ -199,6 +201,6 @@ QUnit.test("can read values synchronously", function(){
 
 	var val = child();
 
-	QUnit.deepEqual(val, "A-B", "got the right value");
+	assert.deepEqual(val, "A-B", "got the right value");
 
 });

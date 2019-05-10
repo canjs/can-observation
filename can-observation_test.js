@@ -20,10 +20,10 @@ var canSymbol = require("can-symbol");
 var skipProductionTest = steal.isEnv("production") ? QUnit.skip : QUnit.test;
 
 QUnit.module('can-observation',{
-	setup: function(){}
+	beforeEach: function(assert) {}
 });
 
-QUnit.test("basics", function(){
+QUnit.test("basics", function(assert) {
 	var rootA = simpleObservable('a');
 	var rootB = simpleObservable('b');
 
@@ -32,13 +32,13 @@ QUnit.test("basics", function(){
 	});
 
 	canReflect.onValue(observation, function(newVal){
-		QUnit.equal(newVal, "Ab");
+		assert.equal(newVal, "Ab");
 	});
 
 	rootA.set("A");
 });
 
-QUnit.test('nested traps are reset onto parent traps', function() {
+QUnit.test('nested traps are reset onto parent traps', function(assert) {
 	var obs1 = simpleObservable('a');
 	var obs2 = simpleObservable('b');
 
@@ -57,9 +57,9 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 
 		var observes1 = getObserves1();
 
-		equal(observes1.length, 2, "two items");
-		equal(observes1[0][0], obs1);
-		equal(observes1[1][0], obs2);
+		assert.equal(observes1.length, 2, "two items");
+		assert.equal(observes1[0][0], obs1);
+		assert.equal(observes1[1][0], obs2);
 	});
 	//canReflect.onValue(oi, function(){})
 
@@ -67,7 +67,7 @@ QUnit.test('nested traps are reset onto parent traps', function() {
 });
 
 
-test("Change propagation in a batch with late bindings (#2412)", function(){
+QUnit.test("Change propagation in a batch with late bindings (#2412)", function(assert) {
 
 	var rootA = simpleObservable('a');
 	var rootB = simpleObservable('b');
@@ -90,7 +90,7 @@ test("Change propagation in a batch with late bindings (#2412)", function(){
 	childA.addEventListener('change', function(ev, newVal, oldVal) {});
 
 	grandChild.addEventListener('change', function(ev, newVal, oldVal) {
-	  equal(newVal, "grandChild->childAA", "got the right value");
+	  assert.equal(newVal, "grandChild->childAA", "got the right value");
 	});
 
 	queues.batch.start();
@@ -100,7 +100,7 @@ test("Change propagation in a batch with late bindings (#2412)", function(){
 
 });
 
-test("deeply nested computes that are read that don't allow deeper primary depth computes to complete first", function(){
+QUnit.test("deeply nested computes that are read that don't allow deeper primary depth computes to complete first", function(assert) {
 
 	// This is to setup `grandChild` which will be forced
 	// into reading `childA` which has a higher depth then itself, but isn't changing.
@@ -143,15 +143,15 @@ test("deeply nested computes that are read that don't allow deeper primary depth
 	queues.batch.stop();
 
 
-	QUnit.deepEqual(order, ["grandChild childAa","deepThing"]);
+	assert.deepEqual(order, ["grandChild childAa","deepThing"]);
 
 });
 
-test("Reading a compute before the batch has completed", function(){
+QUnit.test("Reading a compute before the batch has completed", function(assert) {
 	var c1 = simpleObservable(1),
 		c2;
 	c1.on("value", function(){
-		equal(c2(),4, "updated");
+		assert.equal(c2(),4, "updated");
 	});
 
 	c2 = simpleCompute(function(){
@@ -188,7 +188,7 @@ test("a low primary depth reading a high primary depth compute", function(){
 	});
 
 	grandChild.addEventListener("change", function(ev, newVal){
-		QUnit.equal(newVal, "B", "val is updated");
+		assert.equal(newVal, "B", "val is updated");
 		order.push("grandChild");
 	});
 
@@ -198,11 +198,11 @@ test("a low primary depth reading a high primary depth compute", function(){
 	rootB.set('B');
 	canBatch.stop();
 
-	QUnit.deepEqual(order, ["grandChild","deepThing"]);
+	assert.deepEqual(order, ["grandChild","deepThing"]);
 });*/
 
 
-QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
+QUnit.test("canBatch.afterPreviousEvents in a compute", function(assert) {
 	var root = simpleObservable('a');
 
 	var baseCompute = simpleCompute(function(){
@@ -221,13 +221,13 @@ QUnit.test("canBatch.afterPreviousEvents in a compute", function(){
 	},"afterPreviousCompute");
 
 	compute.addEventListener("change", function(ev, newVal){
-		QUnit.equal(newVal, "b");
+		assert.equal(newVal, "b");
 	});
 
 	root.set("b");
 });
 
-QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
+QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(assert) {
 	/*
 	 computeThatGoesSideways
      - pushSidewaysCompute
@@ -280,11 +280,11 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(){
 	order = [];
 	root.set("b");
 
-	QUnit.deepEqual(order, ['side compute','computeThatGoesSideways start', 'computeThatGoesSideways finish']);
+	assert.deepEqual(order, ['side compute','computeThatGoesSideways start', 'computeThatGoesSideways finish']);
 });
 
 
-QUnit.test("calling a deep compute when only its child should have been updated (#19)", 2, function(){
+QUnit.test("calling a deep compute when only its child should have been updated (#19)", 2, function(assert) {
 
 	// the problem is that childCompute knows it needs to change
 	// but we are reading grandChildCompute.
@@ -304,12 +304,12 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 		return "gc-"+childCompute();
 	});
 	grandChildCompute.addEventListener("change", function(ev, newValue){
-		QUnit.equal(newValue, "gc-c-B", "one change event");
+		assert.equal(newValue, "gc-c-B", "one change event");
 	});
 
 	sideCompute.addEventListener("change", function(){
 		rootA.set("B");
-		QUnit.equal( grandChildCompute(), "gc-c-B", "read new value");
+		assert.equal( grandChildCompute(), "gc-c-B", "read new value");
 	});
 
 	sideObservable.set("X");
@@ -319,7 +319,7 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 
 
 
-QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(){
+QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(assert) {
 	var obs1 = canReflect.assign({prop1: 1}, eventQueue);
     CID(obs1);
     var obs2 = canReflect.assign({prop2: 2}, eventQueue);
@@ -331,22 +331,22 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 		return obs1.prop1 + obs2.prop2;
 	});
 
-	QUnit.ok(canReflect.isValueLike(observation), "it is value like!");
+	assert.ok(canReflect.isValueLike(observation), "it is value like!");
 
-	QUnit.equal(canReflect.getValue(observation), 3, "get unbound");
-	QUnit.equal(canReflect.valueHasDependencies(observation), undefined, "valueHasDependencies undef'd before start");
+	assert.equal(canReflect.getValue(observation), 3, "get unbound");
+	assert.equal(canReflect.valueHasDependencies(observation), undefined, "valueHasDependencies undef'd before start");
 
 	// we shouldn't have to call start
 	//observation.start();
 
 	function handler(newValue){
-		QUnit.equal(newValue, 30, "observed new value");
+		assert.equal(newValue, 30, "observed new value");
 		canReflect.offValue(observation, handler);
 	}
 
 	canReflect.onValue(observation, handler);
-	QUnit.equal(canReflect.getValue(observation), 3, "get bound first");
-	QUnit.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies true after start");
+	assert.equal(canReflect.getValue(observation), 3, "get bound first");
+	assert.ok(canReflect.valueHasDependencies(observation),"valueHasDependencies true after start");
 	queues.batch.start();
 	obs1.prop1 = 10;
 	obs2.prop2 = 20;
@@ -354,11 +354,11 @@ QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with
 	obs2.dispatch("prop2");
 	queues.batch.stop();
 
-	QUnit.equal(canReflect.getValue(observation), 30, "get bound second");
-	QUnit.ok(!observation.bound, "observation stopped");
+	assert.equal(canReflect.getValue(observation), 30, "get bound second");
+	assert.ok(!observation.bound, "observation stopped");
 });
 
-QUnit.test("should not throw if offValue is called without calling onValue" , function() {
+QUnit.test("should not throw if offValue is called without calling onValue" , function(assert) {
 	var noop = function() {};
 	var observation = new Observation(function() {
 		return "Hello";
@@ -366,13 +366,13 @@ QUnit.test("should not throw if offValue is called without calling onValue" , fu
 
 	try {
 		canReflect.offValue(observation, noop);
-		QUnit.ok(true, "should not throw");
+		assert.ok(true, "should not throw");
 	} catch(e) {
-		QUnit.ok(false, e);
+		assert.ok(false, e);
 	}
 });
 
-QUnit.test("getValueDependencies work with can-reflect", function() {
+QUnit.test("getValueDependencies work with can-reflect", function(assert) {
 
 	var obs1 = canReflect.assign({prop1: 1}, eventQueue);
     CID(obs1);
@@ -394,22 +394,22 @@ QUnit.test("getValueDependencies work with can-reflect", function() {
 	});
 
 	var deps = canReflect.getValueDependencies(observation);
-	QUnit.equal(deps, undefined, "getValueDependencies undefined for unstarted observation");
+	assert.equal(deps, undefined, "getValueDependencies undefined for unstarted observation");
 
 	observation.onBound();
 	deps = canReflect.getValueDependencies(observation);
-	QUnit.ok(
+	assert.ok(
 		deps.keyDependencies.has(obs1),
 		"getValueDependencies -- key deps"
 	);
-	QUnit.ok(
+	assert.ok(
 		deps.valueDependencies.has(obs2),
 		"getValueDependencies -- value deps"
 	);
 
 });
 
-QUnit.test("Observation can listen to value decorated with onValue and offValue", function(){
+QUnit.test("Observation can listen to value decorated with onValue and offValue", function(assert) {
 	var v1 = reflectiveValue(1);
 	var v2 = reflectiveValue(2);
 
@@ -419,18 +419,18 @@ QUnit.test("Observation can listen to value decorated with onValue and offValue"
 
 	canReflect.onValue(o, function(){});
 
-	QUnit.equal( canReflect.getValue(o), 3);
+	assert.equal( canReflect.getValue(o), 3);
 
 	queues.batch.start();
 	v1(10);
 	v2(20);
 	queues.batch.stop();
 
-	QUnit.equal( canReflect.getValue(o), 30);
+	assert.equal( canReflect.getValue(o), 30);
 });
 
 
-QUnit.test("Observation can listen to observable decorated with onValue and offValue", function(){
+QUnit.test("Observation can listen to observable decorated with onValue and offValue", function(assert) {
 	var v1 = reflectiveObservable(1);
 	var v2 = reflectiveObservable(2);
 
@@ -440,17 +440,17 @@ QUnit.test("Observation can listen to observable decorated with onValue and offV
 
 	canReflect.onValue(o, function(){});
 
-	QUnit.equal( canReflect.getValue(o), 3);
+	assert.equal( canReflect.getValue(o), 3);
 
 	queues.batch.start();
 	v1.set(10);
 	v2.set(20);
 	queues.batch.stop();
 
-	QUnit.equal( canReflect.getValue(o), 30);
+	assert.equal( canReflect.getValue(o), 30);
 });
 
-QUnit.test("Observation can itself be observable", function(){
+QUnit.test("Observation can itself be observable", function(assert) {
 	var v1 = reflectiveObservable(1);
 	var v2 = reflectiveObservable(2);
 
@@ -462,22 +462,22 @@ QUnit.test("Observation can itself be observable", function(){
 	});
 
 	canReflect.onValue(oB, function(){
-		QUnit.ok(true, "this was fired in a batch");
+		assert.ok(true, "this was fired in a batch");
 	});
 
 
-	QUnit.equal( canReflect.getValue(oB), 9);
+	assert.equal( canReflect.getValue(oB), 9);
 
 	queues.batch.start();
 	v1.set(10);
 	v2.set(20);
 	queues.batch.stop();
 
-	QUnit.equal( canReflect.getValue(oB), 90);
-	QUnit.ok(oA.bound, "bound on oA");
+	assert.equal( canReflect.getValue(oB), 90);
+	assert.ok(oA.bound, "bound on oA");
 });
 
-QUnit.test("should be able to bind, unbind, and re-bind to an observation", function() {
+QUnit.test("should be able to bind, unbind, and re-bind to an observation", function(assert) {
 	var observation = new Observation(function() {
 		return "Hello";
 	});
@@ -488,27 +488,27 @@ QUnit.test("should be able to bind, unbind, and re-bind to an observation", func
 	canReflect.offValue(observation, handler);
 	canReflect.onValue(observation, handler);
 
-	QUnit.ok(observation.bound, "observation is bound");
+	assert.ok(observation.bound, "observation is bound");
 });
 
-QUnit.test("no dependencies", function(){
+QUnit.test("no dependencies", function(assert) {
 	var observation = new Observation(function() {
 		return "Hello";
 	});
 	var handler = function() {};
 	canReflect.onValue(observation, handler);
 
-	QUnit.ok(canReflect.valueHasDependencies(observation) === false, "no dependencies");
+	assert.ok(canReflect.valueHasDependencies(observation) === false, "no dependencies");
 });
 
-QUnit.test("get and set priority", function(){
+QUnit.test("get and set priority", function(assert) {
 	var observation = new Observation(function() {
 		return "Hello";
 	});
 	canReflect.setPriority(observation, 3);
 
 
-	QUnit.equal(canReflect.getPriority(observation), 3);
+	assert.equal(canReflect.getPriority(observation), 3);
 });
 
 /*
@@ -518,9 +518,9 @@ QUnit.test("a bound observation with no dependencies will keep calling its funct
 		return val;
 	});
 	canReflect.onValue(observation,function(){});
-	QUnit.equal(canReflect.getValue(observation), val);
+	assert.equal(canReflect.getValue(observation), val);
 	val = "HELLO";
-	QUnit.equal(canReflect.getValue(observation), val);
+	assert.equal(canReflect.getValue(observation), val);
 });
 */
 
@@ -555,7 +555,7 @@ QUnit.test("log observable changes", function(assert) {
 	name.set("Charles Babbage");
 });
 
-QUnit.test("no handler and queue removes all dependencies", function(){
+QUnit.test("no handler and queue removes all dependencies", function(assert) {
 	var name = simpleObservable("John Doe");
 	var observation = new Observation(function() {
 		ObservationRecorder.add(name, "value");
@@ -565,11 +565,11 @@ QUnit.test("no handler and queue removes all dependencies", function(){
 	canReflect.onValue(observation, function(){});
 	canReflect.onValue(observation, function(){},"notify");
 
-	QUnit.equal(observation.handlers.get([]).length, 2);
+	assert.equal(observation.handlers.get([]).length, 2);
 
 	canReflect.offValue(observation);
 
-	QUnit.equal(observation.handlers.get([]).length, 0);
+	assert.equal(observation.handlers.get([]).length, 0);
 });
 
 skipProductionTest("Observation decorates onDependencyChange handler", function(assert) {
@@ -593,12 +593,12 @@ skipProductionTest("Observation decorates onDependencyChange handler", function(
 	);
 });
 
-QUnit.test("value property getter", function() {
+QUnit.test("value property getter", function(assert) {
 	var observation = new Observation(function() {
 		return "Hello";
 	});
 
 	// Check getting the value
-	QUnit.equal(observation.value, "Hello", "value returns");
+	assert.equal(observation.value, "Hello", "value returns");
 
 });
