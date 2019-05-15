@@ -284,7 +284,8 @@ QUnit.test("prevent side compute reads (canjs/canjs#2151)", function(assert) {
 });
 
 
-QUnit.test("calling a deep compute when only its child should have been updated (#19)", 2, function(assert) {
+QUnit.test("calling a deep compute when only its child should have been updated (#19)", function(assert) {
+	assert.expect(2);
 
 	// the problem is that childCompute knows it needs to change
 	// but we are reading grandChildCompute.
@@ -319,7 +320,8 @@ QUnit.test("calling a deep compute when only its child should have been updated 
 
 
 
-QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", 8,function(assert) {
+QUnit.test("onValue/offValue/getValue/isValueLike/hasValueDependencies work with can-reflect", function(assert) {
+	assert.expect(8);
 	var obs1 = canReflect.assign({prop1: 1}, eventQueue);
     CID(obs1);
     var obs2 = canReflect.assign({prop2: 2}, eventQueue);
