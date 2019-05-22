@@ -42,7 +42,7 @@
     "can-namespace": "1.0.0",
     "can-observation-recorder": "^1.0.0",
     "can-queues": "^1.0.0",
-    "can-reflect": "^1.7.0",
+    "can-reflect": "^1.17.10",
     "can-symbol": "^1.4.2"
   },
   "devDependencies": {
