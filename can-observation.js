@@ -246,7 +246,7 @@ var observationProto = {
 	},
 	"can.setElement": function(element) {
 		this.options.element = element;
-		this.deriveQueue = queues.domDeriveQueue || queues.deriveQueue;
+		this.deriveQueue = queues.domQueue || queues.deriveQueue;
 	}
 };
 
